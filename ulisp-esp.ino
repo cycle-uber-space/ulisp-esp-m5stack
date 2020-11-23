@@ -258,7 +258,8 @@ ENDFUNCTIONS };
 object Workspace[WORKSPACESIZE] WORDALIGNED;
 char SymbolTable[SYMBOLTABLESIZE];
 
-jmp_buf exception;
+jmp_buf toplevel_handler;
+jmp_buf *handler = &toplevel_handler;
 unsigned int Freespace = 0;
 object *Freelist;
 char *SymbolTop = SymbolTable;
@@ -276,7 +277,7 @@ char LastChar = 0;
 char LastPrint = 0;
 
 // Flags
-enum flag { PRINTREADABLY, RETURNFLAG, ESCAPE, EXITEDITOR, LIBRARYLOADED, NOESC, NOECHO };
+enum flag { PRINTREADABLY, RETURNFLAG, ESCAPE, EXITEDITOR, LIBRARYLOADED, NOESC, NOECHO, MUFFLEERRORS };
 volatile uint8_t Flags = 0b00001; // PRINTREADABLY set by default
 
 // Forward references
@@ -308,19 +309,23 @@ void errorsub (symbol_t fname, PGM_P string) {
 }
 
 void error (symbol_t fname, PGM_P string, object *symbol) {
-  errorsub(fname, string);
-  pserial(':'); pserial(' ');
-  printobject(symbol, pserial);
-  pln(pserial);
+  if (!tstflag(MUFFLEERRORS)) {
+    errorsub(fname, string);
+    pserial(':'); pserial(' ');
+    printobject(symbol, pserial);
+    pln(pserial);
+  }
   GCStack = NULL;
-  longjmp(exception, 1);
+  longjmp(*handler, 1);
 }
 
 void error2 (symbol_t fname, PGM_P string) {
-  errorsub(fname, string);
-  pln(pserial);
+  if (!tstflag(MUFFLEERRORS)) {
+    errorsub(fname, string);
+    pln(pserial);
+  }
   GCStack = NULL;
-  longjmp(exception, 1);
+  longjmp(*handler, 1);
 }
 
 // Save space as these are used multiple times
@@ -1291,7 +1296,7 @@ object *closure (int tc, symbol_t name, object *state, object *function, object 
         args = NULL;
       } else {
         if (args == NULL) {
-          if (optional) value = nil; 
+          if (optional) value = nil;
           else error2(name, toofewargs);
         } else { value = first(args); args = cdr(args); }
       }
@@ -1618,9 +1623,9 @@ void superprint (object *form, int lm, pfun_t pfun) {
   else supersub(form, lm + PPINDENT, 1, pfun);
 }
 
-const int ppspecials = 16;
+const int ppspecials = 19;
 const char ppspecial[ppspecials] PROGMEM =
-  { DOTIMES, DOLIST, IF, SETQ, TEE, LET, LETSTAR, LAMBDA, WHEN, UNLESS, WITHI2C, WITHSERIAL, WITHSPI, WITHSDCARD, FORMILLIS, WITHCLIENT };
+  { DOTIMES, DOLIST, IF, SETQ, TEE, LET, LETSTAR, LAMBDA, WHEN, UNLESS, WITHI2C, WITHSERIAL, WITHSPI, WITHSDCARD, FORMILLIS, WITHCLIENT, UNWINDPROTECT, IGNOREERRORS, SP_ERROR };
 
 void supersub (object *form, int lm, int super, pfun_t pfun) {
   int special = 0, separate = 1;
@@ -1745,7 +1750,7 @@ object *sp_incf (object *args, object *env) {
   checkargs(INCF, args); 
   object **loc = place(INCF, first(args), env, &bit);
   args = cdr(args);
-  
+
   object *x = *loc;
   object *inc = (args != NULL) ? eval(first(args), env) : NULL;
 
@@ -1788,7 +1793,7 @@ object *sp_decf (object *args, object *env) {
   checkargs(DECF, args);
   object **loc = place(DECF, first(args), env, &bit);
   args = cdr(args);
-  
+
   object *x = *loc;
   object *dec = (args != NULL) ? eval(first(args), env) : NULL;
 
@@ -2115,6 +2120,68 @@ object *sp_withclient (object *args, object *env) {
   object *result = eval(tf_progn(forms,env), env);
   client.stop();
   return result;
+}
+
+object *sp_unwindprotect (object *args, object *env) {
+  checkargs(UNWINDPROTECT, args);
+  object *current_GCStack = GCStack;
+  jmp_buf dynamic_handler;
+  jmp_buf *previous_handler = handler;
+  handler = &dynamic_handler;
+  object *protected_form = first(args);
+  object *result;
+  if (!setjmp(dynamic_handler)) {
+    result = eval(protected_form, env);
+    current_GCStack = NULL;
+  } else {
+    GCStack = current_GCStack;
+    handler = previous_handler;
+  }
+  object *protective_forms = cdr(args);
+  while (protective_forms != NULL) {
+    eval(car(protective_forms),env);
+    if (tstflag(RETURNFLAG)) break;
+    protective_forms = cdr(protective_forms);
+  }
+  if (current_GCStack) longjmp(*handler, 1);
+  else return result;
+}
+
+object *sp_ignoreerrors (object *args, object *env) {
+  checkargs(IGNOREERRORS, args);
+  object *current_GCStack = GCStack;
+  jmp_buf dynamic_handler;
+  jmp_buf *previous_handler = handler;
+  handler = &dynamic_handler;
+  object *result = nil;
+  setflag(MUFFLEERRORS);
+  if (!setjmp(dynamic_handler)) {
+    while (args != NULL) {
+      result = eval(car(args),env);
+      if (tstflag(RETURNFLAG)) break;
+      args = cdr(args);
+    }
+    current_GCStack = NULL;
+  } else {
+    GCStack = current_GCStack;
+    handler = previous_handler;
+  }
+  clrflag(MUFFLEERRORS);
+  if (current_GCStack) return symbol(NOTHING);
+  else return result;
+}
+
+object *sp_error (object *args, object *env) {
+  checkargs(SP_ERROR, args);
+  object *message = eval(
+    cons(symbol(FORMAT), cons(nil, args)),
+    env);
+  if (!tstflag(MUFFLEERRORS)) {
+    pfstring(PSTR("Error: "), pserial); printstring(message, pserial);
+    pln(pserial);
+  }
+  GCStack = NULL;
+  longjmp(*handler, 1);
 }
 
 // Tail-recursive forms
@@ -2512,7 +2579,7 @@ object *mapcarcan (symbol_t name, object *args, object *env, mapfun_t fun) {
   args = cdr(args);
   object *params = cons(NULL, NULL);
   push(params,GCStack);
-  object *head = cons(NULL, NULL); 
+  object *head = cons(NULL, NULL);
   push(head,GCStack);
   object *tail = head;
   // Make parameters
@@ -3652,12 +3719,14 @@ object *fn_pprintall (object *args, object *env) {
 // Format
 
 void formaterr (object *formatstr, PGM_P string, uint8_t p) {
-  pln(pserial); indent(4, ' ', pserial); printstring(formatstr, pserial); pln(pserial);
-  indent(p+5, ' ', pserial); pserial('^');
-  errorsub(FORMAT, string);
-  pln(pserial);
+  if (!tstflag(MUFFLEERRORS)) {
+    pln(pserial); indent(4, ' ', pserial); printstring(formatstr, pserial); pln(pserial);
+    indent(p+5, ' ', pserial); pserial('^');
+    errorsub(FORMAT, string);
+    pln(pserial);
+  }
   GCStack = NULL;
-  longjmp(exception, 1);
+  longjmp(*handler, 1);
 }
 
 object *fn_format (object *args, object *env) {
@@ -5238,6 +5307,8 @@ object *eval (object *form, object *env) {
     error(0, PSTR("undefined"), form);
   }
 
+  if (form->type == CODE) error2(0, PSTR("can't evaluate CODE header"));
+
   // It's a list
   object *function = car(form);
   object *args = cdr(form);
@@ -5898,7 +5969,8 @@ void repl (object *env) {
 }
 
 void loop () {
-  if (!setjmp(exception)) {
+  End = 0xA5;      // Canary to check stack
+  if (!setjmp(toplevel_handler)) {
     #if defined(resetautorun)
     volatile int autorun = 12; // Fudge to keep code size the same
     #else
