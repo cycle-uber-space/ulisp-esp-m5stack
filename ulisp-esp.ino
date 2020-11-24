@@ -2143,7 +2143,10 @@ object *sp_unwindprotect (object *args, object *env) {
     if (tstflag(RETURNFLAG)) break;
     protective_forms = cdr(protective_forms);
   }
-  if (current_GCStack) longjmp(*handler, 1);
+  if (current_GCStack) {
+    GCStack = NULL;
+    longjmp(*handler, 1);
+  }
   else return result;
 }
 
