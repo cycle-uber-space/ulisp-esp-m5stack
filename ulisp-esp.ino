@@ -5,7 +5,8 @@
 */
 
 // Lisp Library
-const char LispLibrary[] PROGMEM = "";
+//const char LispLibrary[] PROGMEM = "";
+#include "LispLibrary.h"
 
 // Compile options
 
@@ -14,7 +15,7 @@ const char LispLibrary[] PROGMEM = "";
 // #define printgcs
 // #define sdcardsupport
 // #define gfxsupport
-// #define lisplibrary
+#define lisplibrary // this loads the entire lisp library; you can also use REQUIRE instead#
 // #define lineeditor
 // #define vt100
 
