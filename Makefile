@@ -14,7 +14,9 @@ wipe-ll:
 terminal:
 	./screen-terminal.sh
 
-all: upload
-
-clean:
+clean-build:
 	rm -rf build-path
+
+clean: clean-build wipe-ll
+
+all: upload
