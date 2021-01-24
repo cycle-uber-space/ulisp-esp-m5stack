@@ -3,7 +3,7 @@ A version of the Lisp programming language for ESP8266 and ESP32-based boards.
 For more information see:
 http://www.ulisp.com/show?21T5
 
-# Building
+# Building and testing
 
 There is a Makefile and some helper scripts to compile and test the
 distribution of uLisp without having to use the GUI of the
@@ -51,7 +51,7 @@ To wike both, LispLibrary.h and the temporary build files, call:
 
     # make clean
 
-# Terminal session
+## Terminal session
 
 [Gnu Screen](https://www.gnu.org/software/screen/) can be used to talk to a serial
 device. If you have installed Gnu Screen you can open a session on the default USB
