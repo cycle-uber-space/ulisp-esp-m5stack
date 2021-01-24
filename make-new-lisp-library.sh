@@ -1,0 +1,1 @@
+{ echo 'const char LispLibrary[] PROGMEM ='; find LispLibrary/ -type f ! -name "*~" -exec cat '{}' ';' | sed -e 's/\\/\\\\/g' | sed -e 's/"/\\"/g' | sed -E 's/^(.*)$/ "\1"/g'; echo ';'; }  > LispLibrary.h
