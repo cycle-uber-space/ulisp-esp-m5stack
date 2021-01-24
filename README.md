@@ -5,6 +5,13 @@ http://www.ulisp.com/show?21T5
 
 # Building
 
+There is a Makefile and some helper scripts to compile and test the
+distribution of uLisp without having to use the GUI of the
+[Arduino software](https://www.arduino.cc/). Of course, the Arduino
+software is still used for the real work, so you have to have it
+installed and the command `arduino` needs to point to the right
+location to execute it.
+
 To compile and verify call:
 
     # make verify
