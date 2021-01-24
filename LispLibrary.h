@@ -1,2 +1,1 @@
-const char LispLibrary[] PROGMEM =
-  "(defun foo nil (mytest))";
+const char LispLibrary[] PROGMEM = "";
