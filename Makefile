@@ -15,3 +15,6 @@ terminal:
 	./screen-terminal.sh
 
 all: upload
+
+clean:
+	rm -rf build-path
