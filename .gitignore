@@ -1,2 +1,4 @@
 *~
 /build-path/*
+/LispLibrary.h
+/auth-token.h
