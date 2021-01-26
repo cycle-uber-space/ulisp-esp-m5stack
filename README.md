@@ -12,6 +12,10 @@ software is still used for the real work, so you have to have it
 installed and the command `arduino` needs to point to the right
 location to execute it.
 
+To create stub files if you have never used this, first call:
+
+    # make init
+
 To compile and verify call:
 
     # make verify

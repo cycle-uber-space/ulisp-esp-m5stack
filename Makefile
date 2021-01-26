@@ -19,4 +19,7 @@ clean-build:
 
 clean: clean-build wipe-ll
 
+init:
+	./make-stubs.sh
+
 all: upload
