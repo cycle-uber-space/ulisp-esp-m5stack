@@ -17,6 +17,7 @@
 #define gfxsupport
 //#define gfx_adafruit
 #define gfx_m5stack
+#define freefonts // probably only for m5stack
 #define lisplibrary // this loads the entire lisp library; you can also use REQUIRE instead#
 // #define lineeditor
 // #define vt100
@@ -55,6 +56,10 @@ M5Display lcd;
 #define tft lcd
 #endif
 #endif # of gfxsupport
+
+#if defined(freefonts)
+#include <Free_Fonts.h>
+#endif
 
 #if defined(sdcardsupport)
   #include <SD.h>
