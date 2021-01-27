@@ -14,7 +14,9 @@
 #define printfreespace
 // #define printgcs
 // #define sdcardsupport
-// #define gfxsupport
+#define gfxsupport
+//#define gfx_adafruit
+#define gfx_m5stack
 #define lisplibrary // this loads the entire lisp library; you can also use REQUIRE instead#
 // #define lineeditor
 // #define vt100
@@ -34,6 +36,7 @@
 #endif
 
 #if defined(gfxsupport)
+#if defined(gfx_adafruit)
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_SSD1306.h>
 #define COLOR_WHITE 1
@@ -42,7 +45,16 @@
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 #define OLED_RESET     4
 Adafruit_SSD1306 tft(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
+#elif defined(gfx_m5stack)
+#include <M5Display.h>
+#define SCREEN_WIDTH TFT_WIDTH
+#define SCREEN_HEIGHT TFT_HEIGHT
+#define COLOR_WHITE TFT_WHITE
+#define COLOR_BLACK TFT_BLACK
+M5Display lcd;
+#define tft lcd
 #endif
+#endif # of gfxsupport
 
 #if defined(sdcardsupport)
   #include <SD.h>
@@ -5114,8 +5126,13 @@ object *read (gfun_t gfun) {
 
 void initgfx () {
 #if defined(gfxsupport)
+#if defined(gfx_adafruit)
   Wire.begin();
   tft.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+#elif defined(gfx_m5stack)
+  // note: the m5stack uses the VSPI (=SPI3) to talk to the display
+  tft.begin();
+#endif
   tft.fillScreen(COLOR_BLACK);
   tft.display();
 #endif
