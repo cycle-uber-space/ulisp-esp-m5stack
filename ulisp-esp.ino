@@ -14,6 +14,7 @@
 #define printfreespace
 // #define printgcs
 // #define sdcardsupport
+#define flashsupport
 #define gfxsupport
 //#define gfx_adafruit
 #define gfx_m5stack
@@ -55,7 +56,7 @@ Adafruit_SSD1306 tft(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 M5Display lcd;
 #define tft lcd
 #endif
-#endif # of gfxsupport
+#endif # gfxsupport
 
 #if defined(freefonts)
 #include <Free_Fonts.h>
@@ -66,6 +67,13 @@ M5Display lcd;
   #define SDSIZE 172
 #else
   #define SDSIZE 0
+#endif
+
+#if defined(flashsupport)
+  // flash sizes: esp32 regular: 4 MB, m5stack: 4 or 16 MB
+  #define FLASH_FORMAT_IF_MOUNT_FAILED false // needs to be true at least for the first time
+  #include "FS.h"
+  #include "SPIFFS.h"
 #endif
 
 // Platform specific settings
@@ -495,7 +503,7 @@ char *MakeFilename (object *arg) {
 
 // Save-image and load-image
 
-#if defined(sdcardsupport)
+#if defined(sdcardsupport) || defined(flashsupport)
 void SDWriteInt (File file, int data) {
   file.write(data & 0xFF); file.write(data>>8 & 0xFF);
   file.write(data>>16 & 0xFF); file.write(data>>24 & 0xFF);
@@ -509,6 +517,7 @@ void EpromWriteInt(int *addr, uintptr_t data) {
 
 unsigned int saveimage (object *arg) {
   unsigned int imagesize = compactimage(&arg);
+#if defined(sdcardsupport) || defined(flashsupport)
 #if defined(sdcardsupport)
   SD.begin(SDCARD_SS_PIN);
   File file;
@@ -518,6 +527,18 @@ unsigned int saveimage (object *arg) {
   } else if (arg == NULL || listp(arg)) file = SD.open("/ULISP.IMG", FILE_WRITE);
   else error(SAVEIMAGE, PSTR("illegal argument"), arg);
   if (!file) error2(SAVEIMAGE, PSTR("problem saving to SD card"));
+#elif defined(flashsupport)
+  if(!SPIFFS.begin(FLASH_FORMAT_IF_MOUNT_FAILED)){
+    error2(SAVEIMAGE, PSTR("flash (SPIFFS) mount failed"));
+  }
+  File file;
+  if (stringp(arg)) {
+    file = SPIFFS.open(MakeFilename(arg), FILE_WRITE);
+    arg = NULL;
+  } else if (arg == NULL || listp(arg)) file = SPIFFS.open("/ULISP.IMG", FILE_WRITE);
+  else error(SAVEIMAGE, PSTR("illegal argument"), arg);
+  if (!file) error2(SAVEIMAGE, PSTR("problem saving to flash memory (SPIFFS)"));
+#endif
   SDWriteInt(file, (uintptr_t)arg);
   SDWriteInt(file, imagesize);
   SDWriteInt(file, (uintptr_t)GlobalEnv);
@@ -533,7 +554,7 @@ unsigned int saveimage (object *arg) {
   }
   file.close();
   return imagesize;
-#else
+#else // of sdcardsupport or flashsupport
   if (!(arg == NULL || listp(arg))) error(SAVEIMAGE, PSTR("illegal argument"), arg);
   int bytesneeded = imagesize*8 + SYMBOLTABLESIZE + 36;
   if (bytesneeded > EEPROMSIZE) error(SAVEIMAGE, PSTR("image size too large"), number(imagesize));
@@ -557,7 +578,7 @@ unsigned int saveimage (object *arg) {
 #endif
 }
 
-#if defined(sdcardsupport)
+#if defined(sdcardsupport) || defined(flashsupport)
 int SDReadInt (File file) {
   uintptr_t b0 = file.read(); uintptr_t b1 = file.read();
   uintptr_t b2 = file.read(); uintptr_t b3 = file.read();
@@ -572,6 +593,7 @@ int EpromReadInt (int *addr) {
 #endif
 
 unsigned int loadimage (object *arg) {
+#if defined(sdcardsupport) || defined(flashsupport)
 #if defined(sdcardsupport)
   SD.begin(SDCARD_SS_PIN);
   File file;
@@ -579,6 +601,16 @@ unsigned int loadimage (object *arg) {
   else if (arg == NULL) file = SD.open("/ULISP.IMG");
   else error(LOADIMAGE, PSTR("illegal argument"), arg);
   if (!file) error2(LOADIMAGE, PSTR("problem loading from SD card"));
+#elif defined(flashsupport)
+  if(!SPIFFS.begin(FLASH_FORMAT_IF_MOUNT_FAILED)){
+    error2(LOADIMAGE, PSTR("flash (SPIFFS) mount failed"));
+  }
+  File file;
+  if (stringp(arg)) file = SPIFFS.open(MakeFilename(arg));
+  else if (arg == NULL) file = SPIFFS.open("/ULISP.IMG");
+  else error(LOADIMAGE, PSTR("illegal argument"), arg);
+  if (!file) error2(LOADIMAGE, PSTR("problem loading from flash memory (SPIFFS)"));
+#endif
   SDReadInt(file);
   int imagesize = SDReadInt(file);
   GlobalEnv = (object *)SDReadInt(file);
@@ -595,7 +627,7 @@ unsigned int loadimage (object *arg) {
   file.close();
   gc(NULL, NULL);
   return imagesize;
-#else
+#else // of sdcardsupport or flashsupport
   EEPROM.begin(EEPROMSIZE);
   int addr = 0;
   EpromReadInt(&addr); // Skip eval address
@@ -618,17 +650,25 @@ unsigned int loadimage (object *arg) {
 }
 
 void autorunimage () {
+#if defined(sdcardsupport) || defined(flashsupport)
 #if defined(sdcardsupport)
   SD.begin(SDCARD_SS_PIN);
   File file = SD.open("/ULISP.IMG");
   if (!file) error2(0, PSTR("problem autorunning from SD card"));
+#elif defined(flashsupport)
+  if(!SPIFFS.begin(FLASH_FORMAT_IF_MOUNT_FAILED)){
+    error2(0, PSTR("flash (SPIFFS) mount failed"));
+  }
+  File file = SPIFFS.open("/ULISP.IMG");
+  if (!file) error2(0, PSTR("problem autorunning from flash memory (SPIFFS)"));
+#endif
   object *autorun = (object *)SDReadInt(file);
   file.close();
   if (autorun != NULL) {
     loadimage(NULL);
     apply(0, autorun, NULL, NULL);
   }
-#else
+#else // of sdcardsupport or flashsupport
   EEPROM.begin(EEPROMSIZE);
   int addr = 0;
   object *autorun = (object *)EpromReadInt(&addr);
