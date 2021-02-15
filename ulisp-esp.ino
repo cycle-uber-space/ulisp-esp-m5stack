@@ -215,7 +215,7 @@ K_INPUT, K_INPUT_PULLUP, K_INPUT_PULLDOWN, K_OUTPUT,
 #endif
 USERFUNCTIONS,
 // functions of m-g-r/ulisp-esp-m5stack - begin
-MUTESPEAKER,
+MUTESPEAKER, SETUPBACKLIGHTPWM,
 // functions of m-g-r/ulisp-esp-m5stack - end
 // insert more user functions here
 ENDFUNCTIONS };
@@ -4027,6 +4027,25 @@ object *fn_mutespeaker (object *args, object *env) {
   return nil;
 }
 
+// setup backlight LED pwm of the m5stack display
+
+#define BLK_PWM_CHANNEL 7 // LEDC_CHANNEL_7
+#define TFT_BL 32
+
+object *fn_setupbacklightpwm (object *args, object *env) {
+  /* Syntax: setup-backlight-pwm [brightness] => nil
+   * brightness between 0-255: 0 is off, 255 brightest, 80 (the default) a good compromise,
+   *   good readability for inside rooms. Set to small value to conserve power.
+   * M5Display::begin already does such a setup with a default brightness value of 80.
+   */
+  int brightness = 80;
+  if (args != NULL) brightness = checkinteger(SETUPBACKLIGHTPWM, first(args));
+  ledcSetup(BLK_PWM_CHANNEL, 44100, 8);
+  ledcAttachPin(TFT_BL, BLK_PWM_CHANNEL);
+  ledcWrite(BLK_PWM_CHANNEL, brightness);
+  return nil;
+}
+
 // Insert your own function definitions here
 
 // Built-in procedure names - stored in PROGMEM
@@ -4264,6 +4283,7 @@ const char string223[] PROGMEM = "";
 #endif
 // functions of m-g-r/ulisp-esp-m5stack - begin
 const char user0f6db191193ec5132391e8cc3d09[] PROGMEM = "mute-speaker";
+const char user1e940820e12df008e2062d387aef[] PROGMEM = "setup-backlight-pwm";
 // functions of m-g-r/ulisp-esp-m5stack - end
 
 // Third parameter is no. of arguments; 1st hex digit is min, 2nd hex digit is max, 0xF is unlimited
@@ -4501,6 +4521,7 @@ const tbl_entry_t lookup_table[] PROGMEM = {
 #endif
 // functions of m-g-r/ulisp-esp-m5stack - begin  
   { user0f6db191193ec5132391e8cc3d09, fn_mutespeaker, 0x00 },
+  { user1e940820e12df008e2062d387aef, fn_setupbacklightpwm, 0x01 },
 // functions of m-g-r/ulisp-esp-m5stack - end
 // insert more user functions here
 };
