@@ -4470,6 +4470,7 @@ object *fn_gettemp(object *args, object *env) {
     if (i >= 8) {
       error2(GETTEMP, PSTR("address too long"));
     }
+    if (!listp(address)) error(GETTEMP, PSTR("address is not a list of 8 integers"), car(args));
     deviceAddress[i] = checkinteger(GETTEMP, car(address));
     i++;
     address = cdr(address);
