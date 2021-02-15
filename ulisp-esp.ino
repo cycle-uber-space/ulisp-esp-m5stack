@@ -28,6 +28,8 @@
 
 #define m5stack_boot_mute // mute speaker on boot
 #define enable_ntptime
+#define enable_http
+#define enable_http_keywords // keywords used for http but might be used more general
 
 // Includes
 
@@ -223,6 +225,13 @@ MUTESPEAKER, SETUPBACKLIGHTPWM,
 #if defined(enable_ntptime)
 INITNTP, GETTIME,
 #endif # enable_ntptime
+#if defined(enable_http)
+HTTP,
+#endif # enable_http
+#if defined(enable_http_keywords)
+K_USER, K_PASSWORD, K_AUTH, K_HTTPS, K_ACCEPT, K_CONTENT_TYPE,
+K_METHOD, K_GET, K_PUT, K_POST, K_DATA, K_VERBOSE,
+#endif # enable_http_keywords
 // functions of m-g-r/ulisp-esp-m5stack - end
 // insert more user functions here
 ENDFUNCTIONS };
@@ -315,6 +324,7 @@ const char invalidkey[] PROGMEM = "invalid keyword";
 const char invalidpin[] PROGMEM = "invalid pin";
 const char resultproper[] PROGMEM = "result is not a proper list";
 const char oddargs[] PROGMEM = "odd number of arguments";
+const char oddkeyargs[] PROGMEM = "odd number of keyword arguments";
 
 // Set up workspace
 
@@ -4086,6 +4096,303 @@ object *fn_gettime (object *args, object *env) {
 
 #endif # enable_ntptime
 
+// http
+#if defined(enable_http)
+
+#include <HTTPClient.h>
+#include "base64.h"
+
+#include "root_ca.h"
+#ifndef root_certificate
+#define root_certificate
+const char root_ca[] PROGMEM = "";
+#endif # root_certificate
+
+#include "auth-token.h" // has to define authUsername and authPassword or be empty
+#ifndef authtoken
+#define authtoken
+const char *default_username = "";
+const char *default_password = "";
+#endif # authtoken
+
+#define MAX_URL 256
+#define MAX_PASSWORD 65
+#define MAX_USER 65
+#define MAX_CERTIFICATE 2560 /* ugh, big! */
+#define MAX_HEADER_ARG 65 /*  a bit short but useful enough for me */
+#define MAX_DATA 256
+
+object *fn_http (object *args, object *env) {
+  /* Syntax:
+   *    http url &key verbose
+   *                  (https t)
+   *                  auth
+   *                  (user default_username)
+   *                  (password default_password)
+   *                  accept
+   *                  content-type
+   *                  (method :get)
+   *                  data
+   *      => result-string
+   *
+   * Arguments and values:
+   *    verbose---t, or nil (the default); affects also debug output of the
+   * argument decoding itself and should be put in first position in a call
+   * for full effect.
+   *
+   *    https---t (the default), nil, or a certificate as string; uses default
+   * certificate in C string root_ca if true; url needs to fit: "http://..."
+   * for true and and "https://..." for false.
+   *
+   *    auth---t, or nil (the default).
+   *
+   *    user---a string, or nil (the default); uses default value in C string
+   * default_username if nil; only used if :auth t.
+   *
+   *    password---a string, or nil (the default); uses default value in C string
+   * default_password if nil; only used if :auth t.
+   *
+   *    accept---nil (the default), or a string.
+   *
+   *    content-type---nil (the default), or a string.
+   *
+   *    method---:get (the default), :put, or :post.
+   *
+   *    data---nil (the default), or a string; only necessary in case of :method :put
+   * or :method :post; error for :method :get.
+   *
+   * Examples:
+   *    ;; HTTP GET:
+   *    (http "http://192.168.179.41:2342" :https nil)
+   *
+   *    ;; HTTP PUT:
+   *    (http "http://192.168.179.41:2342"
+   *          :https nil
+   *          :accept "application/n-quads"
+   *          :content-type "application/n-quads"
+   *          :auth t :user "foo" :password "bar"
+   *          :method :put
+   *          :data (format nil "<http://example.com/button> <http://example.com/pressed> \"~a\" .~%"
+   *                            (get-time)))
+   */
+  HTTPClient http;
+
+  char url[MAX_URL] = "", user[MAX_USER] = "", password[MAX_PASSWORD] = "";
+  char certificate[MAX_CERTIFICATE] = "", accept[MAX_HEADER_ARG] = "";
+  char content_type[MAX_HEADER_ARG] = "", data[MAX_DATA] = "";
+  bool authp = false, httpsp = true, verbosep = false;
+  symbol_t method = K_GET;
+
+  if (!stringp(first(args))) {
+    error2(HTTP, PSTR("url is not a string"));
+  } else {
+    cstring(first(args), url, MAX_URL);
+  }
+  args = cdr(args);
+  while (args != NULL) {
+    object *arg = car(args);
+    if (!symbolp(arg)) error2(HTTP, PSTR("&keyword argument not a symbol"));
+    if (cdr(args) == NULL) error2(HTTP, oddkeyargs);
+    //char *argname = symbolname(arg->name);
+    if (arg->name == K_VERBOSE) {
+      // if (symbolp(second(args)) && second(args)->name == NIL ) {
+      if (second(args) == nil) { // workaround because of bug: (symbolp nil) => nil
+        verbosep = false;
+      } else {
+        verbosep = true;
+        pfstring(PSTR("verbose mode on"), pserial);
+        pln(pserial);
+      }
+    } else if (arg->name == K_USER) {
+      cstring(second(args), user, MAX_USER);
+      if (verbosep) {
+        pfstring(PSTR("login as user: "), pserial);
+        pstring(user, pserial);
+        pln(pserial);
+      }
+    } else if (arg->name == K_PASSWORD) {
+      cstring(second(args), password, MAX_PASSWORD);
+      if (verbosep) {
+        pfstring(PSTR("login with custom password"), pserial);
+        //pstring(password, pserial);
+        pln(pserial);
+      }
+    } else if (arg->name == K_AUTH) {
+      // if (symbolp(second(args)) && second(args)->name == NIL ) {
+      if (second(args) == nil) { // workaround because of bug: (symbolp nil) => nil
+        authp = false;
+        if (verbosep) {
+          pfstring(PSTR(":auth is nil: no authorization"), pserial);
+          pln(pserial);
+        }
+      } else {
+        authp = true;
+        if (verbosep) {
+          pfstring(PSTR(":auth is non-nil: use authorization"), pserial);
+          pln(pserial);
+        }
+      }
+    } else if (arg->name == K_HTTPS) {
+      // if (symbolp(second(args)) && second(args)->name == NIL ) {
+      if (second(args) == nil) { // workaround because of bug: (symbolp nil) => nil
+        httpsp = false;
+        if (verbosep) {
+          pfstring(PSTR(":https is nil: no encryption"), pserial);
+          pln(pserial);
+        }
+      } else if (symbolp(second(args)) && second(args)->name == TEE ) {
+        httpsp = true;
+        if (verbosep) {
+          pfstring(PSTR(":https is t: encryption with default certificate"), pserial);
+          pln(pserial);
+        }
+      } else if (stringp(second(args))) {
+        httpsp = true;
+        if (verbosep) {
+          pfstring(PSTR(":https is a string: encryption with string as certificate"), pserial);
+          pln(pserial);
+        }
+        cstring(second(args), certificate, MAX_CERTIFICATE);
+      } else {
+        error(HTTP, PSTR("unknown :auth argument"), second(args));
+      }
+    } else if (arg->name == K_ACCEPT) {
+      if (stringp(second(args))) {
+        cstring(second(args), accept, MAX_HEADER_ARG);
+      } else {
+        error(HTTP, PSTR("argument :accept not a string"), second(args));
+      }
+    } else if (arg->name == K_CONTENT_TYPE) {
+      if (stringp(second(args))) {
+        cstring(second(args), content_type, MAX_HEADER_ARG);
+      } else {
+        error(HTTP, PSTR("argument :content-type not a string"), second(args));
+      }
+    } else if (arg->name == K_DATA) {
+      if (stringp(second(args))) {
+        cstring(second(args), data, MAX_DATA);
+      } else {
+        error(HTTP, PSTR("argument :data not a string"), second(args));
+      }
+    } else if (arg->name == K_METHOD) {
+      if (symbolp(second(args)) && second(args)->name == K_GET ) {
+        method = K_GET;
+      } else if (symbolp(second(args)) && second(args)->name == K_PUT ) {
+        method = K_PUT;
+      } else if (symbolp(second(args)) && second(args)->name == K_POST ) {
+        method = K_POST;
+      } else {
+        error(HTTP, PSTR("unknown :method argument"), second(args));
+      }
+    }
+
+    // skip over current pair(!) of keyword and argument
+    args = cddr(args);
+  }
+
+  if (httpsp) {
+    if (certificate[0] != '\0') { // want to use https but CERTIFICATE not set yet
+      // -> use default certificate
+      if (strlen_P(root_ca)+1 > MAX_CERTIFICATE) {
+        error2(HTTP, PSTR("default certificate too big"));
+      } else {
+        strcpy_P(certificate, root_ca);
+      }
+    }
+    http.begin(url, certificate);
+  } else {
+    http.begin(url);
+  }
+
+  if (authp) {
+    String auth = base64::encode(((user[0] != '\0') ? String(user) : String(default_username))
+                                 + ":" +
+                                 ((password[0] != '\0') ? String(password) : String(default_password)));
+    http.addHeader("Authorization", "Basic " + auth);
+  }
+
+  if (accept[0] != '\0') {
+    if (verbosep) {
+      pfstring(PSTR("adding header Accept: "), pserial);
+      pstring(accept, pserial);
+      pln(pserial);
+    }
+    http.addHeader("Accept", accept);
+  }
+
+  if (content_type[0] != '\0') {
+    if (verbosep) {
+      pfstring(PSTR("adding header Content-Type: "), pserial);
+      pstring(accept, pserial);
+      pln(pserial);
+    }
+    http.addHeader("Content-Type", content_type);
+  }
+
+  // detect not allowed combinations of method and data
+  if (method == K_GET && (data[0] != '\0')) {
+    error2(HTTP, PSTR("http method GET but DATA specified"));
+  } else if (method == K_PUT && (data[0] == '\0')) {
+    error2(HTTP, PSTR("http method PUT but no DATA specified"));
+  } if (method == K_POST && (data[0] == '\0')) {
+    error2(HTTP, PSTR("http method POST but no DATA specified"));
+  }
+
+  if (verbosep) {
+    pfstring(PSTR("url: "), pserial);
+    pstring(url, pserial);
+    pln(pserial);
+  }
+
+  int httpCode = -1;
+  if (method == K_GET ) {
+    if (verbosep) {
+      pfstring(PSTR("attempting http get.."), pserial);
+    }
+    httpCode = http.GET();
+  } else if (method == K_PUT ) {
+    if (verbosep) {
+      pfstring(PSTR("attempting http put.."), pserial);
+    }
+    httpCode = http.PUT(String(data));
+  } else if (method == K_POST ) {
+    if (verbosep) {
+      pfstring(PSTR("attempting http post.."), pserial);
+    }
+    httpCode = http.POST(String(data));
+  } else {
+    error2(HTTP, PSTR("unknown http method specifier"));
+  }
+  if (verbosep) {
+    pfstring(PSTR(".done"), pserial);
+    pln(pserial);
+  }
+
+  if (httpCode > 0) { //Check for the returning code
+    String payload = http.getString();
+    /* Clearly I want to use multiple values here to also return
+     * the HTTP status but I despise the Clojure way to use and
+     * return a list instead so utterly that I rather only return
+     * the payload than to go that route.
+     */
+    //if (verbosep) {
+      pfstring(PSTR("HTTP status: "), pserial);
+      pint(httpCode, pserial);
+      pln(pserial);
+    //}
+    http.end();
+    return lispstring((char*)payload.c_str(), false);
+  }
+  else {
+    http.end();
+    error2(HTTP, PSTR("Error on HTTP request"));
+  }
+
+  return nil;
+}
+
+#endif # enable_http
+
 // Insert your own function definitions here
 
 // Built-in procedure names - stored in PROGMEM
@@ -4328,6 +4635,23 @@ const char user1e940820e12df008e2062d387aef[] PROGMEM = "setup-backlight-pwm";
 const char userb5041c7e60ed34334d39600833f3[] PROGMEM = "init-ntp";
 const char user3a67e7c3c14eac5a44188be95ea6[] PROGMEM = "get-time";
 #endif # enable_ntptime
+#if defined(enable_http)
+const char user92abc222af1101e38d582530d58d[] PROGMEM = "http";
+#endif # enable_http
+#if defined(enable_http_keywords)
+const char user3ed955da3a52900b3f44eded1a0b[] PROGMEM = ":user";
+const char user18d71e64097fca7226bb62487adf[] PROGMEM = ":password";
+const char userc7d58e17e69d46f5c7eb73480e8b[] PROGMEM = ":auth";
+const char usercb67d079cd2a197d4e5bcf787193[] PROGMEM = ":https";
+const char user48ab6ae492323a663f13526e18ad[] PROGMEM = ":accept";
+const char userffdef3ab76d68bdff903187ffa4c[] PROGMEM = ":content-type";
+const char userb9f6ae28d6b530d0d32ef9055fe8[] PROGMEM = ":method";
+const char userfd32fa5b768ea67a9cf6f4b68cda[] PROGMEM = ":get";
+const char userf81de31eaddf62586fb7435d2adc[] PROGMEM = ":put";
+const char user0dd528da14e6a7601f2e8bc8e45a[] PROGMEM = ":post";
+const char user3e237eb57df41f63c2443ca20d00[] PROGMEM = ":data";
+const char user03834864379c55acedafcb5cf10b[] PROGMEM = ":verbose";
+#endif # enable_http_keywords
 // functions of m-g-r/ulisp-esp-m5stack - end
 
 // Third parameter is no. of arguments; 1st hex digit is min, 2nd hex digit is max, 0xF is unlimited
@@ -4570,6 +4894,23 @@ const tbl_entry_t lookup_table[] PROGMEM = {
   { userb5041c7e60ed34334d39600833f3, fn_initntp, 0x00 },
   { user3a67e7c3c14eac5a44188be95ea6, fn_gettime, 0x00 },
 #endif # enable_ntptime
+#if defined(enable_http)
+  { user92abc222af1101e38d582530d58d, fn_http, 0x1f },
+#endif # enable_http
+#if defined(enable_http_keywords)
+  { user3ed955da3a52900b3f44eded1a0b, NULL, 0x00 }, // :user
+  { user18d71e64097fca7226bb62487adf, NULL, 0x00 }, // :password
+  { userc7d58e17e69d46f5c7eb73480e8b, NULL, 0x00 }, // :auth
+  { usercb67d079cd2a197d4e5bcf787193, NULL, 0x00 }, // :https
+  { user48ab6ae492323a663f13526e18ad, NULL, 0x00 }, // :accept
+  { userffdef3ab76d68bdff903187ffa4c, NULL, 0x00 }, // :content-type
+  { userb9f6ae28d6b530d0d32ef9055fe8, NULL, 0x00 }, // :method
+  { userfd32fa5b768ea67a9cf6f4b68cda, NULL, 0x00 }, // :get
+  { userf81de31eaddf62586fb7435d2adc, NULL, 0x00 }, // :put
+  { user0dd528da14e6a7601f2e8bc8e45a, NULL, 0x00 }, // :post
+  { user3e237eb57df41f63c2443ca20d00, NULL, 0x00 }, // :data
+  { user03834864379c55acedafcb5cf10b, NULL, 0x00 }, // :verbose
+#endif # enable_http_keywords
 // functions of m-g-r/ulisp-esp-m5stack - end
 // insert more user functions here
 };
