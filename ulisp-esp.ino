@@ -23,6 +23,8 @@
 // #define lineeditor
 // #define vt100
 
+#define m5stack_boot_mute // mute speaker on boot
+
 // Includes
 
 // #include "LispLibrary.h"
@@ -97,6 +99,8 @@ M5Display lcd;
 #else
 #error "Board not supported!"
 #endif
+
+#define M5STACK_SPEAKER_PIN 25
 
 // C Macros
 
@@ -209,7 +213,12 @@ K_INPUT, K_INPUT_PULLUP, K_OUTPUT,
 #elif defined(ESP32)
 K_INPUT, K_INPUT_PULLUP, K_INPUT_PULLDOWN, K_OUTPUT,
 #endif
-USERFUNCTIONS, ENDFUNCTIONS };
+USERFUNCTIONS,
+// functions of m-g-r/ulisp-esp-m5stack - begin
+MUTESPEAKER,
+// functions of m-g-r/ulisp-esp-m5stack - end
+// insert more user functions here
+ENDFUNCTIONS };
 
 // Global variables
 
@@ -4005,6 +4014,19 @@ object *fn_invertdisplay (object *args, object *env) {
   return nil;
 }
 
+// function definitions of m-g-r/ulisp-esp-m5stack
+
+// mute m5stack speaker
+
+void mute_speaker() {
+  analogWrite(M5STACK_SPEAKER_PIN, 0);
+}
+
+object *fn_mutespeaker (object *args, object *env) {
+  mute_speaker();
+  return nil;
+}
+
 // Insert your own function definitions here
 
 // Built-in procedure names - stored in PROGMEM
@@ -4240,6 +4262,9 @@ const char string221[] PROGMEM = ":input-pulldown";
 const char string222[] PROGMEM = ":output";
 const char string223[] PROGMEM = "";
 #endif
+// functions of m-g-r/ulisp-esp-m5stack - begin
+const char user0f6db191193ec5132391e8cc3d09[] PROGMEM = "mute-speaker";
+// functions of m-g-r/ulisp-esp-m5stack - end
 
 // Third parameter is no. of arguments; 1st hex digit is min, 2nd hex digit is max, 0xF is unlimited
 const tbl_entry_t lookup_table[] PROGMEM = {
@@ -4474,6 +4499,10 @@ const tbl_entry_t lookup_table[] PROGMEM = {
   { string222, (fn_ptr_type)OUTPUT, PINMODE },
   { string223, NULL, 0x00 },
 #endif
+// functions of m-g-r/ulisp-esp-m5stack - begin  
+  { user0f6db191193ec5132391e8cc3d09, fn_mutespeaker, 0x00 },
+// functions of m-g-r/ulisp-esp-m5stack - end
+// insert more user functions here
 };
 
 // Table lookup functions
@@ -5195,6 +5224,9 @@ void setup () {
   initworkspace();
   initenv();
   initsleep();
+#if defined(m5stack_boot_mute)
+  mute_speaker();
+#endif
   initgfx();
   pfstring(PSTR("uLisp 3.4 "), pserial); pln(pserial);
 }
