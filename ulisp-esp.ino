@@ -1178,14 +1178,16 @@ char *cstring (object *form, char *buffer, int buflen) {
   return buffer;
 }
 
-object *lispstring (char *s) {
+object *lispstring (char *s, bool escape = true) {
   object *obj = myalloc();
   obj->type = STRING;
   char ch = *s++;
   object *head = NULL;
   int chars = 0;
   while (ch) {
-    if (ch == '\\') ch = *s++;
+    if (escape) {
+      if (ch == '\\') ch = *s++;
+    }
     buildstring(ch, &chars, &head);
     ch = *s++;
   }
