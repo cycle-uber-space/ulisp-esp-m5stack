@@ -27,6 +27,7 @@
 // #define vt100
 
 #define m5stack_boot_mute // mute speaker on boot
+#define enable_ntptime
 
 // Includes
 
@@ -219,6 +220,9 @@ K_INPUT, K_INPUT_PULLUP, K_INPUT_PULLDOWN, K_OUTPUT,
 USERFUNCTIONS,
 // functions of m-g-r/ulisp-esp-m5stack - begin
 MUTESPEAKER, SETUPBACKLIGHTPWM,
+#if defined(enable_ntptime)
+INITNTP, GETTIME,
+#endif # enable_ntptime
 // functions of m-g-r/ulisp-esp-m5stack - end
 // insert more user functions here
 ENDFUNCTIONS };
@@ -4051,6 +4055,37 @@ object *fn_setupbacklightpwm (object *args, object *env) {
   return nil;
 }
 
+// ntp time
+#if defined(enable_ntptime)
+
+#include "time.h"
+
+const char* ntpServer = "pool.ntp.org";
+const long  gmtOffset_sec = 0;
+const int   daylightOffset_sec = 3600;
+
+object *fn_initntp (object *args, object *env) {
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  return nil;
+}
+
+object *fn_gettime (object *args, object *env) {
+  /* Syntax: GET-TIME -> timestamp
+   * returns a timestamp in the format of xsd:dateTime
+   */
+  struct tm timeinfo;
+  if(!getLocalTime(&timeinfo)){
+    error2(GETTIME, PSTR("Failed to obtain time"));
+    return nil;
+  } else {
+    char* buffer = new char[80];
+    strftime(buffer, 80, "%FT%TZ", &timeinfo);
+    return lispstring(buffer);
+  }
+}
+
+#endif # enable_ntptime
+
 // Insert your own function definitions here
 
 // Built-in procedure names - stored in PROGMEM
@@ -4289,6 +4324,10 @@ const char string223[] PROGMEM = "";
 // functions of m-g-r/ulisp-esp-m5stack - begin
 const char user0f6db191193ec5132391e8cc3d09[] PROGMEM = "mute-speaker";
 const char user1e940820e12df008e2062d387aef[] PROGMEM = "setup-backlight-pwm";
+#if defined(enable_ntptime)
+const char userb5041c7e60ed34334d39600833f3[] PROGMEM = "init-ntp";
+const char user3a67e7c3c14eac5a44188be95ea6[] PROGMEM = "get-time";
+#endif # enable_ntptime
 // functions of m-g-r/ulisp-esp-m5stack - end
 
 // Third parameter is no. of arguments; 1st hex digit is min, 2nd hex digit is max, 0xF is unlimited
@@ -4527,6 +4566,10 @@ const tbl_entry_t lookup_table[] PROGMEM = {
 // functions of m-g-r/ulisp-esp-m5stack - begin  
   { user0f6db191193ec5132391e8cc3d09, fn_mutespeaker, 0x00 },
   { user1e940820e12df008e2062d387aef, fn_setupbacklightpwm, 0x01 },
+#if defined(enable_ntptime)
+  { userb5041c7e60ed34334d39600833f3, fn_initntp, 0x00 },
+  { user3a67e7c3c14eac5a44188be95ea6, fn_gettime, 0x00 },
+#endif # enable_ntptime
 // functions of m-g-r/ulisp-esp-m5stack - end
 // insert more user functions here
 };
