@@ -30,6 +30,7 @@
 #define enable_ntptime
 #define enable_http
 #define enable_http_keywords // keywords used for http but might be used more general
+#define enable_dallastemp
 
 // Includes
 
@@ -83,6 +84,17 @@ M5Display lcd;
   #include "FS.h"
   #include "SPIFFS.h"
 #endif
+
+#if defined(enable_dallastemp)
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#define ONE_WIRE_BUS 16
+#define DEFAULT_TEMPERATURE_PRECISION 12
+// setup one wire instance to communicate with any OneWire devices
+OneWire oneWire(ONE_WIRE_BUS);
+// configre Dallas Temperature to use one wire instance
+DallasTemperature temp_sensors(&oneWire);
+#endif # enable_dallastemp
 
 // Platform specific settings
 
@@ -232,6 +244,9 @@ HTTP,
 K_USER, K_PASSWORD, K_AUTH, K_HTTPS, K_ACCEPT, K_CONTENT_TYPE,
 K_METHOD, K_GET, K_PUT, K_POST, K_DATA, K_VERBOSE,
 #endif # enable_http_keywords
+#if defined(enable_dallastemp)
+INITTEMP, GETTEMP, SETTEMPRESOLUTION, GETTEMPDEVICESCOUNT,
+#endif # enable_dallastemp
 // functions of m-g-r/ulisp-esp-m5stack - end
 // insert more user functions here
 ENDFUNCTIONS };
@@ -4393,6 +4408,118 @@ object *fn_http (object *args, object *env) {
 
 #endif # enable_http
 
+// dallas temp
+#if defined(enable_dallastemp)
+
+void printOneWireAddress(DeviceAddress deviceAddress) {
+  // function to print a device address
+  for (uint8_t i = 0; i < 8; i++) {
+    // zero pad the address if necessary
+    if (deviceAddress[i] < 16) pserial('0');
+    pinthex(deviceAddress[i], pserial);
+    if (i < 7) pserial(':');
+  }
+  pln(pserial);
+}
+object *fn_inittemp(object *args, object *env) {
+  // Syntax: init-temp => number-of-temp-sensors
+  temp_sensors.begin(); // this updates the internal devices and ds18 counts
+
+  int tempCount = temp_sensors.getDS18Count();
+  if ( tempCount <= 0) {
+    // error2(INITTEMP, PSTR("no compatible temperature sensors found"));
+    pfstring(PSTR("no compatible temperature sensors found"), pserial); pln(pserial);
+    return nil;
+  }
+
+  // broadcast setResolution to all devices
+  temp_sensors.setResolution(DEFAULT_TEMPERATURE_PRECISION);
+
+  DeviceAddress deviceAddress;
+  object *result = NULL;
+  int actualCount = 0;
+  for(int i=0;i < temp_sensors.getDeviceCount(); i++) {
+    if(temp_sensors.getAddress(deviceAddress, i)) {
+      if (temp_sensors.validFamily(deviceAddress)) {
+        pfstring(PSTR("Found Dallas Temp: "), pserial);
+        printOneWireAddress(deviceAddress);
+        pfstring(PSTR(" -> resolution actually set to: "), pserial);
+        pint(temp_sensors.getResolution(deviceAddress), pserial);
+        pln(pserial);
+        object *address = NULL;
+        for(uint8_t i = 7; i < 8 /* sic! 0-1 == 255 */; i--) {
+          address = cons(number(deviceAddress[i]), address);
+        }
+        result = cons(address, result);
+        actualCount++;
+      }
+    }
+  }
+  if (actualCount != tempCount) {
+    error2(INITTEMP, PSTR("found less sensors then the library announced"));
+  }
+  return result;
+}
+
+object *fn_gettemp(object *args, object *env) {
+  // Syntax: get-temp address => temp-in-celsius
+  DeviceAddress deviceAddress;
+  int i = 0;
+  object *address = car(args);
+  while (address != NULL) {
+    if (i >= 8) {
+      error2(GETTEMP, PSTR("address too long"));
+    }
+    deviceAddress[i] = checkinteger(GETTEMP, car(address));
+    i++;
+    address = cdr(address);
+  } // i == length(address) == 8 if all went well now
+  if (i < 8) {
+    error2(GETTEMP, PSTR("address too short"));
+  }
+  // temp_sensors.requestTemperatures();
+  temp_sensors.requestTemperaturesByAddress(deviceAddress);
+  float tempC = temp_sensors.getTempC(deviceAddress);
+  if (tempC == (float)-127) {
+    // error2(GETTEMP, PSTR("temperature sensor disconnected"));
+    pfstring(PSTR("temp sensor disconnected"), pserial); pln(pserial);
+    return nil;
+  }
+  return makefloat(tempC);
+}
+
+object *fn_settempresolution(object *args, object *env) {
+  // Syntax: set-temp-resolution address [resolution] => actual-resolution
+  DeviceAddress deviceAddress;
+  int i = 0;
+  object *address = car(args);
+  while (address != NULL) {
+    if (i >= 8) {
+      error2(GETTEMP, PSTR("address too long"));
+    }
+    deviceAddress[i] = checkinteger(GETTEMP, car(address));
+    i++;
+    address = cdr(address);
+  } // i == length(address) == 8 if all went well now
+  if (i < 8) {
+    error2(GETTEMP, PSTR("address too short"));
+  }
+
+  args = cdr(args); // next arg
+
+  int precision = DEFAULT_TEMPERATURE_PRECISION;
+  if (args != NULL) precision = checkinteger(SETTEMPRESOLUTION, first(args));
+
+  temp_sensors.setResolution(deviceAddress, precision);
+  return number(temp_sensors.getResolution(deviceAddress));
+}
+
+object *fn_gettempdevicescount(object *args, object *env) {
+  return number(temp_sensors.getDS18Count());
+}
+
+#endif # enable_dallastemp
+
 // Insert your own function definitions here
 
 // Built-in procedure names - stored in PROGMEM
@@ -4652,6 +4779,12 @@ const char user0dd528da14e6a7601f2e8bc8e45a[] PROGMEM = ":post";
 const char user3e237eb57df41f63c2443ca20d00[] PROGMEM = ":data";
 const char user03834864379c55acedafcb5cf10b[] PROGMEM = ":verbose";
 #endif # enable_http_keywords
+#if defined(enable_dallastemp)
+const char userc65fb817287f56327cb653a23ff1[] PROGMEM = "init-temp";
+const char user338df9807a7c0fb38c6d3b67b09d[] PROGMEM = "get-temp";
+const char usera1220cc63a1b191e09349963756c[] PROGMEM = "set-temp-resolution";
+const char user46625f7d60ca8651d4a2b9150c7d[] PROGMEM = "get-temp-devices-count";
+#endif # enable_dallastemp
 // functions of m-g-r/ulisp-esp-m5stack - end
 
 // Third parameter is no. of arguments; 1st hex digit is min, 2nd hex digit is max, 0xF is unlimited
@@ -4911,6 +5044,12 @@ const tbl_entry_t lookup_table[] PROGMEM = {
   { user3e237eb57df41f63c2443ca20d00, NULL, 0x00 }, // :data
   { user03834864379c55acedafcb5cf10b, NULL, 0x00 }, // :verbose
 #endif # enable_http_keywords
+#if defined(enable_dallastemp)
+  { userc65fb817287f56327cb653a23ff1, fn_inittemp, 0x00 },
+  { user338df9807a7c0fb38c6d3b67b09d, fn_gettemp, 0x11 },
+  { usera1220cc63a1b191e09349963756c, fn_settempresolution, 0x12 },
+  { user46625f7d60ca8651d4a2b9150c7d, fn_gettempdevicescount, 0x00 },
+#endif # enable_dallastemp
 // functions of m-g-r/ulisp-esp-m5stack - end
 // insert more user functions here
 };
