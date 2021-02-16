@@ -2,6 +2,9 @@
    David Johnson-Davies - www.technoblogy.com - 4th January 2021
 
    Licensed under the MIT license: https://opensource.org/licenses/MIT
+
+   Some modifications and improved support for the M5Stack platform
+   by Max-Gerd Retzlaff <m.retzlaff@gmx.net>, 2021
 */
 
 // Lisp Library
