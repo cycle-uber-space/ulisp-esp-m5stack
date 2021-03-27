@@ -4422,7 +4422,26 @@ void printOneWireAddress(DeviceAddress deviceAddress) {
   pln(pserial);
 }
 object *fn_inittemp(object *args, object *env) {
-  // Syntax: init-temp => number-of-temp-sensors
+  /* Function init-temp
+   *
+   * Syntax:
+   *    init-temp
+   *      => result-list
+   *
+   * Arguments and values:
+   *    result-list----a list of devices addresses; each address being
+   * a list of 8 integer values specifying a device address.
+   *
+   * Description:
+   *    Detects all supported temperature sensors connected via one wire
+   * bus to the pin ONE_WIRE_BUS and returns the list of the sensors'
+   * device addresses.
+   *
+   *    All sensors are configured to use the resolution specified by
+   * default DEFAULT_TEMPERATURE_PRECISION via a broadcast. Note that
+   * a sensor might choose a different resolution if the desired resolution
+   * is not supported. See also: set-temp-resolution.
+   */
   temp_sensors.begin(); // this updates the internal devices and ds18 counts
 
   int tempCount = temp_sensors.getDS18Count();
@@ -4462,7 +4481,22 @@ object *fn_inittemp(object *args, object *env) {
 }
 
 object *fn_gettemp(object *args, object *env) {
-  // Syntax: get-temp address => temp-in-celsius
+  /* Function get-temp
+   *
+   * Syntax:
+   *    get-temp address
+   *      => temperature
+   *
+   * Arguments and values:
+   *    address---a list of 8 integer values specifying a device address.
+   *
+   *    temperature---an integer value; the measured temperature in Celsius.
+   *
+   * Description:
+   *    Requests the sensor specified by address to measure and compute a new
+   * temperature reading, retrieves the value from the sensor device and
+   * returns the temperature in Celsius.
+   */
   DeviceAddress deviceAddress;
   int i = 0;
   object *address = car(args);
@@ -4490,7 +4524,30 @@ object *fn_gettemp(object *args, object *env) {
 }
 
 object *fn_settempresolution(object *args, object *env) {
-  // Syntax: set-temp-resolution address [resolution] => actual-resolution
+  /* Function set-temp-resolution
+   *
+   * Syntax:
+   *    set-temp-resolution address [resolution]
+   *      => actual-resolution
+   *
+   * Arguments and values:
+   *    address---a list of 8 integer values specifying a device address.
+   *
+   *    resolution---an integer value.
+   *
+   *    actual-resolution---an integer value.
+   *
+   * Description:
+   *    Tries to configure the sensor specified by address to use the given resolution
+   * and returns the actual resolution that the devices is set to after the attempt.
+   *
+   *    Note that a sensor might choose a different resolution if the desired
+   * resolution is not supported. In this case, the returned actual-resolution differs
+   * from the argument resolution.
+   *
+   * If the argument resolution is missing, instead the default given by
+   * DEFAULT_TEMPERATURE_PRECISION is used.
+   */
   DeviceAddress deviceAddress;
   int i = 0;
   object *address = car(args);
@@ -4516,6 +4573,21 @@ object *fn_settempresolution(object *args, object *env) {
 }
 
 object *fn_gettempdevicescount(object *args, object *env) {
+  /* Function get-temp-devices-count
+   *
+   * Syntax:
+   *    get-temp-devices-count
+   *      => count
+   *
+   * Arguments and values:
+   *    count---an integer value; the number of detected supported temperature sensors.
+   *
+   * Description:
+   *    Returns the number of temperature sensors supported by this interface that
+   * were detected by the last call to INIT-TEMP. Note that this might not be
+   * the correct current count if sensors were removed or added since the last
+   * call to INIT-TEMP.
+   */
   return number(temp_sensors.getDS18Count());
 }
 
