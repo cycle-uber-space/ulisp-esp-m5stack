@@ -4090,13 +4090,31 @@ const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 3600;
 
 object *fn_initntp (object *args, object *env) {
+  /* Function init-ntp
+   *
+   * Syntax:
+   *    init-ntp
+   *      => nil
+   *
+   * Description:
+   *    Initializes and configures NTP.
+   */
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   return nil;
 }
 
 object *fn_gettime (object *args, object *env) {
-  /* Syntax: GET-TIME -> timestamp
-   * returns a timestamp in the format of xsd:dateTime
+  /* Function get-time
+   *
+   * Syntax:
+   *    get-time
+   *      => timestamp
+   *
+   * Arguments and values:
+   *    timestamp---a string; containing a timestamp in the format of xsd:dateTime.
+   *
+   * Description:
+   *    Returns a timestamp in the format of xsd:dateTime.
    */
   struct tm timeinfo;
   if(!getLocalTime(&timeinfo)){
