@@ -4156,7 +4156,9 @@ const char *default_password = "";
 #define MAX_DATA 256
 
 object *fn_http (object *args, object *env) {
-  /* Syntax:
+  /* Function http
+   *
+   * Syntax:
    *    http url &key verbose
    *                  (https t)
    *                  auth
