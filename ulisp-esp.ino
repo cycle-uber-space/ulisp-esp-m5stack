@@ -1,5 +1,5 @@
-/* uLisp ESP Version 3.6 - www.ulisp.com
-   David Johnson-Davies - www.technoblogy.com - 4th April 2021
+/* uLisp ESP Version 3.6b - www.ulisp.com
+   David Johnson-Davies - www.technoblogy.com - unreleased
 
    Licensed under the MIT license: https://opensource.org/licenses/MIT
 
@@ -417,6 +417,13 @@ object *stream (uint8_t streamtype, uint8_t address) {
   object *ptr = myalloc();
   ptr->type = STREAM;
   ptr->integer = streamtype<<8 | address;
+  return ptr;
+}
+
+object *newstring () {
+  object *ptr = myalloc();
+  ptr->type = STRING;
+  ptr->chars = 0;
   return ptr;
 }
 
@@ -1092,21 +1099,20 @@ void indent (uint8_t spaces, char ch, pfun_t pfun) {
 }
 
 object *startstring (symbol_t name) {
-  object *string = myalloc();
-  string->type = STRING;
-  GlobalString = NULL;
+  object *string = newstring();
+  GlobalString = string;
   GlobalStringIndex = 0;
   return string;
 }
 
-void buildstring (uint8_t ch, int *chars, object **head) {
+void buildstring (uint8_t ch, object *string, int *chars) {
   static object* tail;
   static uint8_t shift;
   if (*chars == 0) {
     shift = (sizeof(int)-1)*8;
     *chars = ch<<shift;
     object *cell = myalloc();
-    if (*head == NULL) *head = cell; else tail->car = cell;
+    if (cdr(string) == NULL) cdr(string) = cell; else tail->car = cell;
     cell->car = NULL;
     cell->chars = *chars;
     tail = cell;
@@ -1119,18 +1125,15 @@ void buildstring (uint8_t ch, int *chars, object **head) {
 }
 
 object *readstring (uint8_t delim, gfun_t gfun) {
-  object *obj = myalloc();
-  obj->type = STRING;
+  object *obj = newstring();
   int ch = gfun();
   if (ch == -1) return nil;
-  object *head = NULL;
   int chars = 0;
   while ((ch != delim) && (ch != -1)) {
     if (ch == '\\') ch = gfun();
-    buildstring(ch, &chars, &head);
+    buildstring(ch, obj, &chars);
     ch = gfun();
   }
-  obj->cdr = head;
   return obj;
 }
 
@@ -1172,7 +1175,7 @@ int gstr () {
 }
 
 void pstr (char c) {
-  buildstring(c, &GlobalStringIndex, &GlobalString);
+  buildstring(c, GlobalString, &GlobalStringIndex);
 }
 
 char *cstringbuf (object *arg) {
@@ -1958,10 +1961,10 @@ object *sp_withoutputtostring (object *args, object *env) {
   object *pair = cons(var, stream(STRINGSTREAM, 0));
   push(pair,env);
   object *string = startstring(WITHOUTPUTTOSTRING);
+  push(string, GCStack);
   object *forms = cdr(args);
   eval(tf_progn(forms,env), env);
-  string->cdr = GlobalString;
-  GlobalString = NULL;
+  pop(GCStack);
   return string;
 }
 
@@ -3167,8 +3170,7 @@ object *fn_stringfn (object *args, object *env) {
   object *arg = first(args);
   int type = arg->type;
   if (type == STRING) return arg;
-  object *obj = myalloc();
-  obj->type = STRING;
+  object *obj = newstring();
   if (type == CHARACTER) {
     object *cell = myalloc();
     cell->car = NULL;
@@ -3178,14 +3180,12 @@ object *fn_stringfn (object *args, object *env) {
   } else if (type == SYMBOL) {
     char *s = symbolname(arg->name);
     char ch = *s++;
-    object *head = NULL;
     int chars = 0;
     while (ch) {
       if (ch == '\\') ch = *s++;
-      buildstring(ch, &chars, &head);
+      buildstring(ch, arg, &chars);
       ch = *s++;
     }
-    obj->cdr = head;
   } else error(STRINGFN, PSTR("can't convert to string"), arg);
   return obj;
 }
@@ -3195,9 +3195,7 @@ object *fn_concatenate (object *args, object *env) {
   object *arg = first(args);
   if (arg->name != STRINGFN) error2(CONCATENATE, PSTR("only supports strings"));
   args = cdr(args);
-  object *result = myalloc();
-  result->type = STRING;
-  object *head = NULL;
+  object *result = newstring();
   int chars = 0;
   while (args != NULL) {
     object *obj = first(args);
@@ -3207,14 +3205,13 @@ object *fn_concatenate (object *args, object *env) {
       int quad = obj->chars;
       while (quad != 0) {
          char ch = quad>>((sizeof(int)-1)*8) & 0xFF;
-         buildstring(ch, &chars, &head);
+         buildstring(ch, result, &chars);
          quad = quad<<8;
       }
       obj = car(obj);
     }
     args = cdr(args);
   }
-  result->cdr = head;
   return result;
 }
 
@@ -3227,16 +3224,13 @@ object *fn_subseq (object *args, object *env) {
   int end;
   args = cddr(args);
   if (args != NULL) end = checkinteger(SUBSEQ, car(args)); else end = stringlength(arg);
-  object *result = myalloc();
-  result->type = STRING;
-  object *head = NULL;
+  object *result = newstring();
   int chars = 0;
   for (int i=start; i<end; i++) {
     char ch = nthchar(arg, i);
     if (ch == 0) error2(SUBSEQ, PSTR("index out of range"));
-    buildstring(ch, &chars, &head);
+    buildstring(ch, result, &chars);
   }
-  result->cdr = head;
   return result;
 }
 
@@ -3254,7 +3248,6 @@ object *fn_princtostring (object *args, object *env) {
   object *arg = first(args);
   object *obj = startstring(PRINCTOSTRING);
   prin1object(arg, pstr);
-  obj->cdr = GlobalString;
   return obj;
 }
 
@@ -3263,7 +3256,6 @@ object *fn_prin1tostring (object *args, object *env) {
   object *arg = first(args);
   object *obj = startstring(PRIN1TOSTRING);
   printobject(arg, pstr);
-  obj->cdr = GlobalString;
   return obj;
 }
 
@@ -3742,7 +3734,7 @@ object *fn_format (object *args, object *env) {
     }
     n++;
   }
-  if (output == nil) { obj->cdr = GlobalString; return obj; }
+  if (output == nil) return obj;
   else return nil;
 }
 
