@@ -1211,7 +1211,7 @@ object *lispstring (char *s, bool escape = true) {
     if (escape) {
       if (ch == '\\') ch = *s++;
     }
-    buildstring(ch, &chars, &head);
+    buildstring(ch, head, &chars);
     ch = *s++;
   }
   obj->cdr = head;
