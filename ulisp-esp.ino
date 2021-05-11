@@ -4438,7 +4438,7 @@ void printOneWireAddress(DeviceAddress deviceAddress) {
   for (uint8_t i = 0; i < 8; i++) {
     // zero pad the address if necessary
     if (deviceAddress[i] < 16) pserial('0');
-    pinthex(deviceAddress[i], pserial);
+    pintbase(deviceAddress[i], 4, pserial);
     if (i < 7) pserial(':');
   }
   pln(pserial);
