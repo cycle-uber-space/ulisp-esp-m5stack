@@ -207,11 +207,11 @@ typedef int PinMode;
 typedef int BitOrder;
 
 enum function { NIL, TEE, NOTHING, OPTIONAL, INITIALELEMENT, ELEMENTTYPE, BIT, AMPREST, LAMBDA, LET,
-LETSTAR, CLOSURE, SPECIAL_FORMS, QUOTE, DEFUN, DEFVAR, SETQ, LOOP, RETURN, PUSH, POP, INCF, DECF, SETF,
-DOLIST, DOTIMES, TRACE, UNTRACE, FORMILLIS, WITHOUTPUTTOSTRING, WITHSERIAL, WITHI2C, WITHSPI, WITHSDCARD,
-WITHGFX, WITHCLIENT, TAIL_FORMS, PROGN, IF, COND, WHEN, UNLESS, CASE, AND, OR, FUNCTIONS, NOT, NULLFN,
-CONS, ATOM, LISTP, CONSP, SYMBOLP, ARRAYP, BOUNDP, SETFN, STREAMP, EQ, CAR, FIRST, CDR, REST, CAAR, CADR,
-SECOND, CDAR, CDDR, CAAAR, CAADR, CADAR, CADDR, THIRD, CDAAR, CDADR, CDDAR, CDDDR, LENGTH,
+LETSTAR, CLOSURE, SPECIAL_FORMS, QUOTE, OR, DEFUN, DEFVAR, SETQ, LOOP, RETURN, PUSH, POP, INCF, DECF,
+SETF, DOLIST, DOTIMES, TRACE, UNTRACE, FORMILLIS, WITHOUTPUTTOSTRING, WITHSERIAL, WITHI2C, WITHSPI,
+WITHSDCARD, WITHGFX, WITHCLIENT, TAIL_FORMS, PROGN, IF, COND, WHEN, UNLESS, CASE, AND, FUNCTIONS, NOT,
+NULLFN, CONS, ATOM, LISTP, CONSP, SYMBOLP, ARRAYP, BOUNDP, SETFN, STREAMP, EQ, CAR, FIRST, CDR, REST,
+CAAR, CADR, SECOND, CDAR, CDDR, CAAAR, CAADR, CADAR, CADDR, THIRD, CDAAR, CDADR, CDDAR, CDDDR, LENGTH,
 ARRAYDIMENSIONS, LIST, MAKEARRAY, REVERSE, NTH, AREF, ASSOC, MEMBER, APPLY, FUNCALL, APPEND, MAPC, MAPCAR,
 MAPCAN, ADD, SUBTRACT, MULTIPLY, DIVIDE, MOD, ONEPLUS, ONEMINUS, ABS, RANDOM, MAXFN, MINFN, NOTEQ, NUMEQ,
 LESS, LESSEQ, GREATER, GREATEREQ, PLUSP, MINUSP, ZEROP, ODDP, EVENP, INTEGERP, NUMBERP, FLOATFN, FLOATP,
@@ -4632,37 +4632,37 @@ const char string10[] PROGMEM = "let*";
 const char string11[] PROGMEM = "closure";
 const char string12[] PROGMEM = "";
 const char string13[] PROGMEM = "quote";
-const char string14[] PROGMEM = "defun";
-const char string15[] PROGMEM = "defvar";
-const char string16[] PROGMEM = "setq";
-const char string17[] PROGMEM = "loop";
-const char string18[] PROGMEM = "return";
-const char string19[] PROGMEM = "push";
-const char string20[] PROGMEM = "pop";
-const char string21[] PROGMEM = "incf";
-const char string22[] PROGMEM = "decf";
-const char string23[] PROGMEM = "setf";
-const char string24[] PROGMEM = "dolist";
-const char string25[] PROGMEM = "dotimes";
-const char string26[] PROGMEM = "trace";
-const char string27[] PROGMEM = "untrace";
-const char string28[] PROGMEM = "for-millis";
-const char string29[] PROGMEM = "with-output-to-string";
-const char string30[] PROGMEM = "with-serial";
-const char string31[] PROGMEM = "with-i2c";
-const char string32[] PROGMEM = "with-spi";
-const char string33[] PROGMEM = "with-sd-card";
-const char string34[] PROGMEM = "with-gfx";
-const char string35[] PROGMEM = "with-client";
-const char string36[] PROGMEM = "";
-const char string37[] PROGMEM = "progn";
-const char string38[] PROGMEM = "if";
-const char string39[] PROGMEM = "cond";
-const char string40[] PROGMEM = "when";
-const char string41[] PROGMEM = "unless";
-const char string42[] PROGMEM = "case";
-const char string43[] PROGMEM = "and";
-const char string44[] PROGMEM = "or";
+const char string14[] PROGMEM = "or";
+const char string15[] PROGMEM = "defun";
+const char string16[] PROGMEM = "defvar";
+const char string17[] PROGMEM = "setq";
+const char string18[] PROGMEM = "loop";
+const char string19[] PROGMEM = "return";
+const char string20[] PROGMEM = "push";
+const char string21[] PROGMEM = "pop";
+const char string22[] PROGMEM = "incf";
+const char string23[] PROGMEM = "decf";
+const char string24[] PROGMEM = "setf";
+const char string25[] PROGMEM = "dolist";
+const char string26[] PROGMEM = "dotimes";
+const char string27[] PROGMEM = "trace";
+const char string28[] PROGMEM = "untrace";
+const char string29[] PROGMEM = "for-millis";
+const char string30[] PROGMEM = "with-output-to-string";
+const char string31[] PROGMEM = "with-serial";
+const char string32[] PROGMEM = "with-i2c";
+const char string33[] PROGMEM = "with-spi";
+const char string34[] PROGMEM = "with-sd-card";
+const char string35[] PROGMEM = "with-gfx";
+const char string36[] PROGMEM = "with-client";
+const char string37[] PROGMEM = "";
+const char string38[] PROGMEM = "progn";
+const char string39[] PROGMEM = "if";
+const char string40[] PROGMEM = "cond";
+const char string41[] PROGMEM = "when";
+const char string42[] PROGMEM = "unless";
+const char string43[] PROGMEM = "case";
+const char string44[] PROGMEM = "and";
 const char string45[] PROGMEM = "";
 const char string46[] PROGMEM = "not";
 const char string47[] PROGMEM = "null";
@@ -4901,37 +4901,37 @@ const tbl_entry_t lookup_table[] PROGMEM = {
   { string11, NULL, 0x0F },
   { string12, NULL, 0x00 },
   { string13, sp_quote, 0x11 },
-  { string14, sp_defun, 0x2F },
-  { string15, sp_defvar, 0x12 },
-  { string16, sp_setq, 0x2F },
-  { string17, sp_loop, 0x0F },
-  { string18, sp_return, 0x0F },
-  { string19, sp_push, 0x22 },
-  { string20, sp_pop, 0x11 },
-  { string21, sp_incf, 0x12 },
-  { string22, sp_decf, 0x12 },
-  { string23, sp_setf, 0x2F },
-  { string24, sp_dolist, 0x1F },
-  { string25, sp_dotimes, 0x1F },
-  { string26, sp_trace, 0x01 },
-  { string27, sp_untrace, 0x01 },
-  { string28, sp_formillis, 0x1F },
-  { string29, sp_withoutputtostring, 0x1F },
-  { string30, sp_withserial, 0x1F },
-  { string31, sp_withi2c, 0x1F },
-  { string32, sp_withspi, 0x1F },
-  { string33, sp_withsdcard, 0x2F },
-  { string34, sp_withgfx, 0x1F },
-  { string35, sp_withclient, 0x12 },
-  { string36, NULL, 0x00 },
-  { string37, tf_progn, 0x0F },
-  { string38, tf_if, 0x23 },
-  { string39, tf_cond, 0x0F },
-  { string40, tf_when, 0x1F },
-  { string41, tf_unless, 0x1F },
-  { string42, tf_case, 0x1F },
-  { string43, tf_and, 0x0F },
-  { string44, tf_or, 0x0F },
+  { string14, sp_or, 0x0F },
+  { string15, sp_defun, 0x2F },
+  { string16, sp_defvar, 0x12 },
+  { string17, sp_setq, 0x2F },
+  { string18, sp_loop, 0x0F },
+  { string19, sp_return, 0x0F },
+  { string20, sp_push, 0x22 },
+  { string21, sp_pop, 0x11 },
+  { string22, sp_incf, 0x12 },
+  { string23, sp_decf, 0x12 },
+  { string24, sp_setf, 0x2F },
+  { string25, sp_dolist, 0x1F },
+  { string26, sp_dotimes, 0x1F },
+  { string27, sp_trace, 0x01 },
+  { string28, sp_untrace, 0x01 },
+  { string29, sp_formillis, 0x1F },
+  { string30, sp_withoutputtostring, 0x1F },
+  { string31, sp_withserial, 0x1F },
+  { string32, sp_withi2c, 0x1F },
+  { string33, sp_withspi, 0x1F },
+  { string34, sp_withsdcard, 0x2F },
+  { string35, sp_withgfx, 0x1F },
+  { string36, sp_withclient, 0x12 },
+  { string37, NULL, 0x00 },
+  { string38, tf_progn, 0x0F },
+  { string39, tf_if, 0x23 },
+  { string40, tf_cond, 0x0F },
+  { string41, tf_when, 0x1F },
+  { string42, tf_unless, 0x1F },
+  { string43, tf_case, 0x1F },
+  { string44, tf_and, 0x0F },
   { string45, NULL, 0x00 },
   { string46, fn_not, 0x11 },
   { string47, fn_not, 0x11 },
