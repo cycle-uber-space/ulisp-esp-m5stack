@@ -1202,19 +1202,16 @@ char *cstring (object *form, char *buffer, int buflen) {
 }
 
 object *lispstring (char *s, bool escape = true) {
-  object *obj = myalloc();
-  obj->type = STRING;
+  object *obj = newstring();
   char ch = *s++;
-  object *head = NULL;
   int chars = 0;
   while (ch) {
     if (escape) {
       if (ch == '\\') ch = *s++;
     }
-    buildstring(ch, head, &chars);
+    buildstring(ch, obj, &chars);
     ch = *s++;
   }
-  obj->cdr = head;
   return obj;
 }
 
