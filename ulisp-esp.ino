@@ -211,7 +211,9 @@ typedef int BitOrder;
 enum function { NIL, TEE, NOTHING, OPTIONAL, INITIALELEMENT, ELEMENTTYPE, BIT, AMPREST, LAMBDA, LET,
 LETSTAR, CLOSURE, SPECIAL_FORMS, QUOTE, OR, DEFUN, DEFVAR, SETQ, LOOP, RETURN, PUSH, POP, INCF, DECF,
 SETF, DOLIST, DOTIMES, TRACE, UNTRACE, FORMILLIS, WITHOUTPUTTOSTRING, WITHSERIAL, WITHI2C, WITHSPI,
-WITHSDCARD, WITHGFX, WITHCLIENT, TAIL_FORMS, PROGN, IF, COND, WHEN, UNLESS, CASE, AND, FUNCTIONS, NOT,
+WITHSDCARD, WITHGFX, WITHCLIENT,
+UNWINDPROTECT, IGNOREERRORS, SP_ERROR,
+TAIL_FORMS, PROGN, IF, COND, WHEN, UNLESS, CASE, AND, FUNCTIONS, NOT,
 NULLFN, CONS, ATOM, LISTP, CONSP, SYMBOLP, ARRAYP, BOUNDP, SETFN, STREAMP, EQ, CAR, FIRST, CDR, REST,
 CAAR, CADR, SECOND, CDAR, CDDR, CAAAR, CAADR, CADAR, CADDR, THIRD, CDAAR, CDADR, CDDAR, CDDDR, LENGTH,
 ARRAYDIMENSIONS, LIST, MAKEARRAY, REVERSE, NTH, AREF, ASSOC, MEMBER, APPLY, FUNCALL, APPEND, MAPC, MAPCAR,
@@ -234,7 +236,6 @@ K_INPUT, K_INPUT_PULLUP, K_OUTPUT,
 K_INPUT, K_INPUT_PULLUP, K_INPUT_PULLDOWN, K_OUTPUT,
 #endif
 USERFUNCTIONS,
-UNWINDPROTECT, IGNOREERRORS, SP_ERROR,
 // functions of m-g-r/ulisp-esp-m5stack - begin
 MUTESPEAKER, SETUPBACKLIGHTPWM,
 #if defined(enable_ntptime)
@@ -4730,6 +4731,9 @@ const char string33[] PROGMEM = "with-spi";
 const char string34[] PROGMEM = "with-sd-card";
 const char string35[] PROGMEM = "with-gfx";
 const char string36[] PROGMEM = "with-client";
+const char string944d81fd0ed3aa6433ad9b560576[] PROGMEM = "unwind-protect";
+const char string4c085b45ade192ea2a98b36e8a24[] PROGMEM = "ignore-errors";
+const char stringda16dce31347cc2b47fc4bac32ed[] PROGMEM = "error";
 const char string37[] PROGMEM = "";
 const char string38[] PROGMEM = "progn";
 const char string39[] PROGMEM = "if";
@@ -4925,10 +4929,6 @@ const char string222[] PROGMEM = ":output";
 const char string223[] PROGMEM = "";
 #endif
 
-const char string944d81fd0ed3aa6433ad9b560576[] PROGMEM = "unwind-protect";
-const char string4c085b45ade192ea2a98b36e8a24[] PROGMEM = "ignore-errors";
-const char stringda16dce31347cc2b47fc4bac32ed[] PROGMEM = "error";
-
 // Insert your own function names here
 
 // Built-in symbol lookup table
@@ -5003,6 +5003,9 @@ const tbl_entry_t lookup_table[] PROGMEM = {
   { string34, sp_withsdcard, 0x2F },
   { string35, sp_withgfx, 0x1F },
   { string36, sp_withclient, 0x12 },
+  { string944d81fd0ed3aa6433ad9b560576, sp_unwindprotect, 0x1F },
+  { string4c085b45ade192ea2a98b36e8a24, sp_ignoreerrors, 0x0F },
+  { stringda16dce31347cc2b47fc4bac32ed, sp_error, 0x1F },
   { string37, NULL, 0x00 },
   { string38, tf_progn, 0x0F },
   { string39, tf_if, 0x23 },
@@ -5197,9 +5200,6 @@ const tbl_entry_t lookup_table[] PROGMEM = {
   { string222, (fn_ptr_type)OUTPUT, PINMODE },
   { string223, NULL, 0x00 },
 #endif
-  { string944d81fd0ed3aa6433ad9b560576, sp_unwindprotect, 0x1F },
-  { string4c085b45ade192ea2a98b36e8a24, sp_ignoreerrors, 0x0F },
-  { stringda16dce31347cc2b47fc4bac32ed, sp_error, 0x1F },  
 // functions of m-g-r/ulisp-esp-m5stack - begin  
   { user0f6db191193ec5132391e8cc3d09, fn_mutespeaker, 0x00 },
   { user1e940820e12df008e2062d387aef, fn_setupbacklightpwm, 0x01 },
