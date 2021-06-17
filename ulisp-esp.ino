@@ -234,6 +234,7 @@ K_INPUT, K_INPUT_PULLUP, K_OUTPUT,
 K_INPUT, K_INPUT_PULLUP, K_INPUT_PULLDOWN, K_OUTPUT,
 #endif
 USERFUNCTIONS,
+UNWINDPROTECT, IGNOREERRORS, SP_ERROR,
 // functions of m-g-r/ulisp-esp-m5stack - begin
 MUTESPEAKER, SETUPBACKLIGHTPWM,
 #if defined(enable_ntptime)
@@ -2188,10 +2189,10 @@ object *sp_error (object *args, object *env) {
     cons(symbol(FORMAT), cons(nil, args)),
     env);
   if (!tstflag(MUFFLEERRORS)) {
-    char temp = Flags_;
+    char temp = Flags;
     clrflag(PRINTREADABLY);
     pfstring(PSTR("Error: "), pserial); printstring(message, pserial);
-    Flags_ = temp;
+    Flags = temp;
     pln(pserial);
   }
   GCStack = NULL;
@@ -4924,6 +4925,10 @@ const char string222[] PROGMEM = ":output";
 const char string223[] PROGMEM = "";
 #endif
 
+const char string944d81fd0ed3aa6433ad9b560576[] PROGMEM = "unwind-protect";
+const char string4c085b45ade192ea2a98b36e8a24[] PROGMEM = "ignore-errors";
+const char stringda16dce31347cc2b47fc4bac32ed[] PROGMEM = "error";
+
 // Insert your own function names here
 
 // Built-in symbol lookup table
@@ -5192,6 +5197,9 @@ const tbl_entry_t lookup_table[] PROGMEM = {
   { string222, (fn_ptr_type)OUTPUT, PINMODE },
   { string223, NULL, 0x00 },
 #endif
+  { string944d81fd0ed3aa6433ad9b560576, sp_unwindprotect, 0x1F },
+  { string4c085b45ade192ea2a98b36e8a24, sp_ignoreerrors, 0x0F },
+  { stringda16dce31347cc2b47fc4bac32ed, sp_error, 0x1F },  
 // functions of m-g-r/ulisp-esp-m5stack - begin  
   { user0f6db191193ec5132391e8cc3d09, fn_mutespeaker, 0x00 },
   { user1e940820e12df008e2062d387aef, fn_setupbacklightpwm, 0x01 },
@@ -5296,6 +5304,8 @@ void testescape () {
 }
 
 // Main evaluator
+
+uint8_t End;
 
 object *eval (object *form, object *env) {
   int TC=0;
