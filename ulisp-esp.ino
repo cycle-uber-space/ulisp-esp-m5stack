@@ -2185,14 +2185,26 @@ object *sp_ignoreerrors (object *args, object *env) {
 }
 
 object *sp_error (object *args, object *env) {
-  checkargs(SP_ERROR, args);
-  object *message = eval(
-    cons(symbol(FORMAT), cons(nil, args)),
-    env);
+  checkargs(SP_ERROR, args); // already make sure that: (args != NULL)
+
+  object *arg = eval(car(args),env); // eval first arg
+  args = cdr(args);
+
+  object *message;
+  if (symbolp(arg)) { // arg is a symbol
+    // just print the symbol
+    // warning: any more args are just ignored!
+    char *argname = symbolname(arg->name);
+    message = lispstring(argname);
+  } else { // just let FORMAT handle it
+    message = eval(
+      cons(symbol(FORMAT), cons(nil, cons(arg, args))),
+      env);
+  }
   if (!tstflag(MUFFLEERRORS)) {
     char temp = Flags;
     clrflag(PRINTREADABLY);
-    pfstring(PSTR("Error: "), pserial); printstring(message, pserial);
+    pfstring(PSTR("SP Error: "), pserial); printstring(message, pserial);
     Flags = temp;
     pln(pserial);
   }
