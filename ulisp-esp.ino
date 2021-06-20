@@ -319,6 +319,19 @@ void error (symbol_t fname, PGM_P string, object *symbol) {
     printobject(symbol, pserial);
     pln(pserial);
   }
+
+  // store error message in GlobalErrorString for GET-ERROR
+  object *obj = startstring(SP_ERROR);
+  if (fname) {
+    pstr('\'');
+    pstring(symbolname(fname), pstr);
+    pstr('\''); pstr(' ');
+  }
+  pfstring(string, pstr);
+  pstr(':'); pstr(' ');
+  printobject(symbol, pstr);  // copy to globalstring
+  GlobalErrorString = obj;
+
   GCStack = NULL;
   longjmp(*handler, 1);
 }
@@ -328,6 +341,17 @@ void error2 (symbol_t fname, PGM_P string) {
     errorsub(fname, string);
     pln(pserial);
   }
+
+  // store error message in GlobalErrorString for GET-ERROR
+  object *obj = startstring(SP_ERROR);
+  if (fname) {
+    pstr('\'');
+    pstring(symbolname(fname), pstr);
+    pstr('\''); pstr(' ');
+  }
+  pfstring(string, pstr);  // copy to globalstring
+  GlobalErrorString = obj;
+
   GCStack = NULL;
   longjmp(*handler, 1);
 }
