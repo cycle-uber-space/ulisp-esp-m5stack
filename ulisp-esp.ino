@@ -236,6 +236,7 @@ K_INPUT, K_INPUT_PULLUP, K_OUTPUT,
 K_INPUT, K_INPUT_PULLUP, K_INPUT_PULLDOWN, K_OUTPUT,
 #endif
 USERFUNCTIONS,
+GETERROR,
 // functions of m-g-r/ulisp-esp-m5stack - begin
 MUTESPEAKER, SETUPBACKLIGHTPWM,
 #if defined(enable_ntptime)
@@ -272,6 +273,7 @@ unsigned int TraceDepth[TRACEMAX];
 object *GlobalEnv;
 object *GCStack = NULL;
 object *GlobalString;
+object *GlobalErrorString;
 int GlobalStringIndex = 0;
 uint8_t PrintCount = 0;
 uint8_t BreakLevel = 0;
@@ -486,6 +488,7 @@ void gc (object *form, object *env) {
   markobject(GCStack);
   markobject(form);
   markobject(env);
+  markobject(GlobalErrorString);
   sweep();
   #if defined(printgcs)
   pfl(pserial); pserial('{'); pint(Freespace - start, pserial); pserial('}');
@@ -2201,6 +2204,11 @@ object *sp_error (object *args, object *env) {
       cons(symbol(FORMAT), cons(nil, cons(arg, args))),
       env);
   }
+  //  object *obj = startstring(SP_ERROR);
+  //  printstring(message, pstr); // copy to globalstring
+  // GlobalErrorString = obj;
+  GlobalErrorString = message;
+
   if (!tstflag(MUFFLEERRORS)) {
     char temp = Flags;
     clrflag(PRINTREADABLY);
@@ -2210,6 +2218,10 @@ object *sp_error (object *args, object *env) {
   }
   GCStack = NULL;
   longjmp(*handler, 1);
+}
+
+object *fn_geterror (object *args, object *env) {
+  return GlobalErrorString;
 }
 
 // Tail-recursive forms
@@ -4944,6 +4956,7 @@ const char string223[] PROGMEM = "";
 // Insert your own function names here
 
 // Built-in symbol lookup table
+const char user06975b647a442ae56f6ee0abc8fb[] PROGMEM = "get-error";
 // functions of m-g-r/ulisp-esp-m5stack - begin
 const char user0f6db191193ec5132391e8cc3d09[] PROGMEM = "mute-speaker";
 const char user1e940820e12df008e2062d387aef[] PROGMEM = "setup-backlight-pwm";
@@ -5212,6 +5225,7 @@ const tbl_entry_t lookup_table[] PROGMEM = {
   { string222, (fn_ptr_type)OUTPUT, PINMODE },
   { string223, NULL, 0x00 },
 #endif
+  { user06975b647a442ae56f6ee0abc8fb, fn_geterror, 0x00 },
 // functions of m-g-r/ulisp-esp-m5stack - begin  
   { user0f6db191193ec5132391e8cc3d09, fn_mutespeaker, 0x00 },
   { user1e940820e12df008e2062d387aef, fn_setupbacklightpwm, 0x01 },
