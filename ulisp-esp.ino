@@ -2228,9 +2228,8 @@ object *sp_error (object *args, object *env) {
       cons(symbol(FORMAT), cons(nil, cons(arg, args))),
       env);
   }
-  //  object *obj = startstring(SP_ERROR);
-  //  printstring(message, pstr); // copy to globalstring
-  // GlobalErrorString = obj;
+
+  // store error message in GlobalErrorString for GET-ERROR
   GlobalErrorString = message;
 
   if (!tstflag(MUFFLEERRORS)) {
