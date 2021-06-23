@@ -5,6 +5,8 @@
 
    Some modifications and improved support for the M5Stack platform
    by Max-Gerd Retzlaff <m.retzlaff@gmx.net>, 2021
+
+   Error handling (unwind-protect, ignore-errors, error) by Goheeca, 2020.
 */
 
 // Lisp Library
