@@ -302,47 +302,18 @@ object *edit (object *fun);
 
 // Error handling
 
-void errorsub (symbol_t fname, PGM_P string) {
-  pfl(pserial); pfstring(PSTR("Error: "), pserial);
-  if (fname) {
-    pserial('\'');
-    pstring(symbolname(fname), pserial);
-    pserial('\''); pserial(' ');
-  }
-  pfstring(string, pserial);
-}
-
-void error (symbol_t fname, PGM_P string, object *symbol) {
+object *errorsub (symbol_t fname, PGM_P string) {
   if (!tstflag(MUFFLEERRORS)) {
-    errorsub(fname, string);
-    pserial(':'); pserial(' ');
-    printobject(symbol, pserial);
-    pln(pserial);
+    pfl(pserial); pfstring(PSTR("Error: "), pserial);
+    if (fname) {
+      pserial('\'');
+      pstring(symbolname(fname), pserial);
+      pserial('\''); pserial(' ');
+    }
+    pfstring(string, pserial);
   }
 
-  // store error message in GlobalErrorString for GET-ERROR
-  object *obj = startstring(SP_ERROR);
-  if (fname) {
-    pstr('\'');
-    pstring(symbolname(fname), pstr);
-    pstr('\''); pstr(' ');
-  }
-  pfstring(string, pstr);
-  pstr(':'); pstr(' ');
-  printobject(symbol, pstr);  // copy to globalstring
-  GlobalErrorString = obj;
-
-  GCStack = NULL;
-  longjmp(*handler, 1);
-}
-
-void error2 (symbol_t fname, PGM_P string) {
-  if (!tstflag(MUFFLEERRORS)) {
-    errorsub(fname, string);
-    pln(pserial);
-  }
-
-  // store error message in GlobalErrorString for GET-ERROR
+  // store error message in string object for GET-ERROR
   object *obj = startstring(SP_ERROR);
   if (fname) {
     pstr('\'');
@@ -350,6 +321,35 @@ void error2 (symbol_t fname, PGM_P string) {
     pstr('\''); pstr(' ');
   }
   pfstring(string, pstr);  // copy to globalstring
+
+  return obj;
+}
+
+void error (symbol_t fname, PGM_P string, object *symbol) {
+  object *obj = errorsub(fname, string);
+  if (!tstflag(MUFFLEERRORS)) {
+    pserial(':'); pserial(' ');
+    printobject(symbol, pserial);
+    pln(pserial);
+  }
+
+  // add symbol to string object for GET-ERROR
+  pstr(':'); pstr(' ');
+  printobject(symbol, pstr);  // copy to globalstring
+  // store error message in GlobalErrorString for GET-ERROR
+  GlobalErrorString = obj;
+
+  GCStack = NULL;
+  longjmp(*handler, 1);
+}
+
+void error2 (symbol_t fname, PGM_P string) {
+  object *obj = errorsub(fname, string);
+  if (!tstflag(MUFFLEERRORS)) {
+    pln(pserial);
+  }
+
+  // store error message in GlobalErrorString for GET-ERROR
   GlobalErrorString = obj;
 
   GCStack = NULL;
