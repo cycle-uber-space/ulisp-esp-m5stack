@@ -2244,7 +2244,9 @@ object *sp_error (object *args, object *env) {
 }
 
 object *fn_geterror (object *args, object *env) {
-  return GlobalErrorString;
+  object *error = GlobalErrorString;
+  GlobalErrorString = NULL;
+  return error;
 }
 
 // Tail-recursive forms
