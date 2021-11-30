@@ -31,6 +31,7 @@
 #define enable_http
 #define enable_http_keywords // keywords used for http but might be used more general
 #define enable_dallastemp
+//#define enable_m5atom_led // need to disable gfx_m5stack (and gfxsupport) for enable_m5atom_led!
 
 // Includes
 
@@ -247,6 +248,9 @@ K_METHOD, K_GET, K_PUT, K_POST, K_DATA, K_VERBOSE,
 #if defined(enable_dallastemp)
 INITTEMP, GETTEMP, SETTEMPRESOLUTION, GETTEMPDEVICESCOUNT,
 #endif # enable_dallastemp
+#if defined(enable_m5atom_led)
+ATOMLED,
+#endif # enable_m5atom_led
 // functions of m-g-r/ulisp-esp-m5stack - end
 // insert more user functions here
 ENDFUNCTIONS };
@@ -4604,6 +4608,37 @@ object *fn_gettempdevicescount(object *args, object *env) {
 
 #endif # enable_dallastemp
 
+// built-in led(s) of m5atom
+#if defined(enable_m5atom_led)
+
+#include <Adafruit_NeoPixel.h>
+
+#define ATOM_NUM_LEDS 1
+#define ATOM_LED_DATA_PIN 27
+
+Adafruit_NeoPixel atom_leds(ATOM_NUM_LEDS, ATOM_LED_DATA_PIN, NEO_GRB);
+
+void init_atomled () {
+  atom_leds.begin(); // INITIALIZE NeoPixel
+  atom_leds.clear();
+  // atom_leds.setPixelColor(0, atom_leds.Color(150, 150, 0));
+  atom_leds.show();
+}
+
+void atomled(uint32_t color) {
+  atom_leds.setPixelColor(0, color);
+  atom_leds.show();
+}
+
+object *fn_atomled(object *args, object *env) {
+  uint32_t color = 0xff0000;
+  if (args != NULL) color = checkinteger(ATOMLED, first(args));
+  atomled(color);
+  return nil;
+}
+
+#endif # enable_m5atom_led
+
 // Insert your own function definitions here
 
 // Built-in symbol names
@@ -4872,6 +4907,9 @@ const char user338df9807a7c0fb38c6d3b67b09d[] PROGMEM = "get-temp";
 const char usera1220cc63a1b191e09349963756c[] PROGMEM = "set-temp-resolution";
 const char user46625f7d60ca8651d4a2b9150c7d[] PROGMEM = "get-temp-devices-count";
 #endif # enable_dallastemp
+#if defined(enable_m5atom_led)
+const char user160acae49c44508fee79466e2136[] PROGMEM = "atom-led";
+#endif # enable_m5atom_led
 // functions of m-g-r/ulisp-esp-m5stack - end
 
 // Third parameter is no. of arguments; 1st hex digit is min, 2nd hex digit is max, 0xF is unlimited
@@ -5137,6 +5175,9 @@ const tbl_entry_t lookup_table[] PROGMEM = {
   { usera1220cc63a1b191e09349963756c, fn_settempresolution, 0x12 },
   { user46625f7d60ca8651d4a2b9150c7d, fn_gettempdevicescount, 0x00 },
 #endif # enable_dallastemp
+#if defined(enable_m5atom_led)
+  { user160acae49c44508fee79466e2136, fn_atomled, 0x01 },
+#endif # enable_m5atom_led
 // functions of m-g-r/ulisp-esp-m5stack - end
 
 // Insert your own table entries here
@@ -5862,8 +5903,11 @@ void setup () {
   initsleep();
 #if defined(m5stack_boot_mute)
   mute_speaker();
-#endif
+#endif # m5stack_boot_mute
   initgfx();
+#if defined(enable_m5atom_led)
+  init_atomled();
+#endif # enable_m5atom_led
   pfstring(PSTR("uLisp 3.6 "), pserial); pln(pserial);
 }
 
