@@ -4642,8 +4642,12 @@ object *fn_atomled(object *args, object *env) {
 
 // Insert your own function definitions here
 
-object *fn_reboot(object *args, object *env) {
+void reboot() {
   ESP.restart();
+}
+
+object *fn_reboot(object *args, object *env) {
+  reboot();
 }
 
 
