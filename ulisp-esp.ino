@@ -253,6 +253,7 @@ ATOMLED,
 #endif # enable_m5atom_led
 // functions of m-g-r/ulisp-esp-m5stack - end
 // insert more user functions here
+REBOOT,
 ENDFUNCTIONS };
 
 // Global variables
@@ -4641,6 +4642,11 @@ object *fn_atomled(object *args, object *env) {
 
 // Insert your own function definitions here
 
+object *fn_reboot(object *args, object *env) {
+  ESP.restart();
+}
+
+
 // Built-in symbol names
 const char string0[] PROGMEM = "nil";
 const char string1[] PROGMEM = "t";
@@ -4910,6 +4916,7 @@ const char user46625f7d60ca8651d4a2b9150c7d[] PROGMEM = "get-temp-devices-count"
 #if defined(enable_m5atom_led)
 const char user160acae49c44508fee79466e2136[] PROGMEM = "atom-led";
 #endif # enable_m5atom_led
+const char user48fb449eec8a7ce84c164201c1b6[] PROGMEM = "reboot";
 // functions of m-g-r/ulisp-esp-m5stack - end
 
 // Third parameter is no. of arguments; 1st hex digit is min, 2nd hex digit is max, 0xF is unlimited
@@ -5178,6 +5185,7 @@ const tbl_entry_t lookup_table[] PROGMEM = {
 #if defined(enable_m5atom_led)
   { user160acae49c44508fee79466e2136, fn_atomled, 0x01 },
 #endif # enable_m5atom_led
+  { user48fb449eec8a7ce84c164201c1b6, fn_reboot, 0x00 },
 // functions of m-g-r/ulisp-esp-m5stack - end
 
 // Insert your own table entries here
