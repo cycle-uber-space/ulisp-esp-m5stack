@@ -32,6 +32,7 @@
 #define enable_http_keywords // keywords used for http but might be used more general
 #define enable_dallastemp
 //#define enable_m5atom_led // need to disable gfx_m5stack (and gfxsupport) for enable_m5atom_led!
+#define enable_m5atom_led_matrix
 
 // Includes
 
@@ -4614,27 +4615,41 @@ object *fn_gettempdevicescount(object *args, object *env) {
 
 #include <Adafruit_NeoPixel.h>
 
+#ifdef enable_m5atom_led_matrix
+#define ATOM_NUM_LEDS 25
+#else
 #define ATOM_NUM_LEDS 1
+#endif
 #define ATOM_LED_DATA_PIN 27
 
 Adafruit_NeoPixel atom_leds(ATOM_NUM_LEDS, ATOM_LED_DATA_PIN, NEO_GRB);
 
 void init_atomled () {
   atom_leds.begin(); // INITIALIZE NeoPixel
+#ifdef enable_m5atom_led_matrix
+  // prevent device from overheating, see M5 atom matrix docs
+  atom_leds.setBrightness(20);
+#endif
   atom_leds.clear();
   // atom_leds.setPixelColor(0, atom_leds.Color(150, 150, 0));
   atom_leds.show();
 }
 
-void atomled(uint32_t color) {
-  atom_leds.setPixelColor(0, color);
+void atomled(uint32_t color, uint16_t index) {
+  atom_leds.setPixelColor(index, color);
   atom_leds.show();
 }
 
 object *fn_atomled(object *args, object *env) {
   uint32_t color = 0xff0000;
-  if (args != NULL) color = checkinteger(ATOMLED, first(args));
-  atomled(color);
+  uint16_t index = 0;
+  if (args != NULL) {
+    color = checkinteger(ATOMLED, first(args));
+    if (cdr(args) != NULL) {
+      index = checkinteger(ATOMLED, second(args));
+    }
+  }
+  atomled(color, index);
   return nil;
 }
 
@@ -5187,7 +5202,7 @@ const tbl_entry_t lookup_table[] PROGMEM = {
   { user46625f7d60ca8651d4a2b9150c7d, fn_gettempdevicescount, 0x00 },
 #endif # enable_dallastemp
 #if defined(enable_m5atom_led)
-  { user160acae49c44508fee79466e2136, fn_atomled, 0x01 },
+  { user160acae49c44508fee79466e2136, fn_atomled, 0x02 },
 #endif # enable_m5atom_led
   { user48fb449eec8a7ce84c164201c1b6, fn_reboot, 0x00 },
 // functions of m-g-r/ulisp-esp-m5stack - end
